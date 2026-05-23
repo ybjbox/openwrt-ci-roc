@@ -106,8 +106,8 @@ uci set network.wan.proto='pppoe'
 uci set network.wan.username='07711731151'
 uci set network.wan.password='56101102'
 
-# 2. 默认关闭 IPv6 支持
-uci -q delete network.wan6
+# 2. 默认关闭 IPv6 支持 (wan6 设置为禁用状态)
+uci set network.wan6.disabled='1' # 仅禁用 wan6 接口，保留其定义以备后用
 uci set network.lan.delegate='0'
 uci set network.lan.ipv6='0'
 uci set network.wan.ipv6='0'
@@ -125,7 +125,7 @@ while uci get wireless.@wifi-iface[$wireless_idx] >/dev/null 2>&1; do
     wireless_idx=$((wireless_idx + 1))
 done
 
-# 启用所有无线网卡（有些源码默认是关闭无线网卡的）
+# 启用所有无线网卡
 radio_idx=0
 while uci get wireless.radio$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio$radio_idx.disabled='0'

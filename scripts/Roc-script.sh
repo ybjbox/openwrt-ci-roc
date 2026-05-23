@@ -73,8 +73,9 @@ git clone --depth=1 https://github.com/laipeng668/luci-app-gecoosac package/luci
 git clone --depth=1 https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
-# 克隆 iStore Quickstart 首页向导插件 (采用适合通用编译环境的适配版，避开 taskd 依赖报错)
-git clone --depth=1 https://github.com/animegasan/luci-app-quickstart package/luci-app-quickstart
+# 自动注入易有云官方订阅源，完美解决 quickstart 与 luci-app-quickstart 的前端+后端依赖
+echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
 
 # 克隆 Bandix 流量监控插件及其后端依赖
 git clone --depth=1 https://github.com/timsaya/luci-app-bandix package/luci-app-bandix

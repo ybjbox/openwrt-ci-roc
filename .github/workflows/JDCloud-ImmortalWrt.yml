@@ -98,6 +98,13 @@ jobs:
         ./scripts/feeds install -a
   
     - name: Load Custom Configuration(加载自定义配置)
+      env:
+        MY_WIFI_SSID_2G: ${{ secrets.WIFI_SSID_2G }}
+        MY_WIFI_SSID_5G: ${{ secrets.WIFI_SSID_5G }}
+        MY_WIFI_PASSWORD: ${{ secrets.WIFI_PASSWORD }}
+        MY_PPPOE_USERNAME: ${{ secrets.PPPOE_USERNAME }}
+        MY_PPPOE_PASSWORD: ${{ secrets.PPPOE_PASSWORD }}
+        MY_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       run: |
         chmod +x $DIY_SCRIPT
         sed -i -e 's/frp-binary/frp-binary-toml/g' -e 's/\<frp\>/frp-toml/g' "$DIY_SCRIPT"

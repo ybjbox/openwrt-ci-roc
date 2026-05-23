@@ -1,6 +1,6 @@
 # 修改默认IP & 固件名称 & 编译署名和时间
-sed -i 's/192.168.1.1/192.168.2.1/g' package/base-files/files/bin/config_generate
-sed -i "s/hostname='.*'/hostname='Roc'/g" package/base-files/files/bin/config_generate
+sed -i 's/192.168.1.1/10.0.0.1/g' package/base-files/files/bin/config_generate
+sed -i "s/hostname='.*'/hostname='athena'/g" package/base-files/files/bin/config_generate
 sed -i "s#_('Firmware Version'), (L\.isObject(boardinfo\.release) ? boardinfo\.release\.description + ' / ' : '') + (luciversion || ''),# \
             _('Firmware Version'),\n \
             E('span', {}, [\n \
@@ -95,3 +95,55 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-open
 
 ./scripts/feeds update -a
 ./scripts/feeds install -a
+
+# ================= 写入首开自定义初始配置 (uci-defaults) =================
+mkdir -p package/base-files/files/etc/uci-defaults
+cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-settings
+#!/bin/sh
+
+# 1. 默认 PPPoE 拨号设置
+uci set network.wan.proto='pppoe'
+uci set network.wan.username='07711731151'
+uci set network.wan.password='56101102'
+
+# 2. 默认关闭 IPv6 支持
+uci -q delete network.wan6
+uci set network.lan.delegate='0'
+uci set network.lan.ipv6='0'
+uci set network.wan.ipv6='0'
+uci set dhcp.lan.dhcpv6='disabled'
+uci -q delete dhcp.lan.ra
+uci -q delete dhcp.lan.dhcpv6
+/etc/init.d/odhcpd disable
+
+# 3. 默认无线配置 (名称：YBJ，密码：yxy252304)
+wireless_idx=0
+while uci get wireless.@wifi-iface[$wireless_idx] >/dev/null 2>&1; do
+    uci set wireless.@wifi-iface[$wireless_idx].ssid='YBJ'
+    uci set wireless.@wifi-iface[$wireless_idx].encryption='psk2'
+    uci set wireless.@wifi-iface[$wireless_idx].key='yxy252304'
+    wireless_idx=$((wireless_idx + 1))
+done
+
+# 启用所有无线网卡（有些源码默认是关闭无线网卡的）
+radio_idx=0
+while uci get wireless.radio$radio_idx >/dev/null 2>&1; do
+    uci set wireless.radio$radio_idx.disabled='0'
+    radio_idx=$((radio_idx + 1))
+done
+
+# 4. 默认主题设置为 Aurora
+uci set luci.main.mediaurlbase='/luci-static/aurora'
+
+# 5. 提交并应用所有配置
+uci commit network
+uci commit dhcp
+uci commit wireless
+uci commit luci
+
+# 6. 修改默认后台密码为 qf#vnMukSN6Jm^
+echo "root:qf#vnMukSN6Jm^" | chpasswd
+
+exit 0
+EOF
+chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings

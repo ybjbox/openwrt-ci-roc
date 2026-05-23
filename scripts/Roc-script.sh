@@ -103,16 +103,16 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-open
 
 # ================= 写入首开自定义初始配置 (uci-defaults) =================
 mkdir -p package/base-files/files/etc/uci-defaults
-cat << 'EOF' > package/base-files/files/etc/uci-defaults/99-custom-settings
+cat << EOF > package/base-files/files/etc/uci-defaults/99-custom-settings
 #!/bin/sh
 
 # 1. 默认 PPPoE 拨号设置
 uci set network.wan.proto='pppoe'
-uci set network.wan.username='07711731151'
-uci set network.wan.password='56101102'
+uci set network.wan.username='${MY_PPPOE_USERNAME}'
+uci set network.wan.password='${MY_PPPOE_PASSWORD}'
 
-# 2. 默认关闭 IPv6 支持 (wan6 设置为禁用状态)
-uci set network.wan6.disabled='1' # 仅禁用 wan6 接口，保留其定义以备后用
+# 2. 默认关闭 IPv6 支持
+uci set network.wan6.disabled='1'
 uci set network.lan.delegate='0'
 uci set network.lan.ipv6='0'
 uci set network.wan.ipv6='0'
@@ -121,20 +121,31 @@ uci -q delete dhcp.lan.ra
 uci -q delete dhcp.lan.dhcpv6
 /etc/init.d/odhcpd disable
 
-# 3. 默认无线配置 (名称：YBJ，密码：yxy252304)
+# 3. 默认无线配置 (2.4G 与双5G 独立命名，双5G 名字相同实现自动无缝漫游)
 wireless_idx=0
-while uci get wireless.@wifi-iface[$wireless_idx] >/dev/null 2>&1; do
-    uci set wireless.@wifi-iface[$wireless_idx].ssid='YBJ'
-    uci set wireless.@wifi-iface[$wireless_idx].encryption='psk2'
-    uci set wireless.@wifi-iface[$wireless_idx].key='yxy252304'
-    wireless_idx=$((wireless_idx + 1))
+while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
+    # 获取该无线接口所绑定的物理网卡设备名 (如 radio0, radio1, radio2)
+    dev_name=\$(uci get wireless.@wifi-iface[\$wireless_idx].device)
+    
+    if [ "\$dev_name" = "radio0" ]; then
+        # radio0 对应 2.4G 网卡，使用 2G SSID
+        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_2G}'
+    else
+        # radio1 和 radio2 均为 5G 网卡，共享 5G SSID，实现客户端自适应漫游切换
+        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_5G}'
+    fi
+    
+    # 统一无线安全加密协议与 WiFi 密码
+    uci set wireless.@wifi-iface[\$wireless_idx].encryption='psk2'
+    uci set wireless.@wifi-iface[\$wireless_idx].key='${MY_WIFI_PASSWORD}'
+    wireless_idx=\$((\$wireless_idx + 1))
 done
 
 # 启用所有无线网卡
 radio_idx=0
-while uci get wireless.radio$radio_idx >/dev/null 2>&1; do
-    uci set wireless.radio$radio_idx.disabled='0'
-    radio_idx=$((radio_idx + 1))
+while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
+    uci set wireless.radio\$radio_idx.disabled='0'
+    radio_idx=\$((\$radio_idx + 1))
 done
 
 # 4. 默认主题设置为 Aurora
@@ -146,8 +157,8 @@ uci commit dhcp
 uci commit wireless
 uci commit luci
 
-# 6. 修改默认后台密码为 qf#vnMukSN6Jm^
-echo "root:qf#vnMukSN6Jm^" | chpasswd
+# 6. 修改默认后台密码
+echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
 
 exit 0
 EOF

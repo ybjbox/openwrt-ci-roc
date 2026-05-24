@@ -166,7 +166,7 @@ uci commit wireless
 uci commit luci
 
 # 6. 修改默认后台密码
-echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
+# echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
 
 exit 0
 EOF

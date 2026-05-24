@@ -1,6 +1,6 @@
 # 修改默认IP & 固件名称 & 编译署名和时间
 sed -i 's/192.168.1.1/10.0.0.1/g' package/base-files/files/bin/config_generate
-sed -i "s/hostname='.*'/hostname='athena'/g" package/base-files/files/bin/config_generate
+sed -i "s/hostname='.*'/hostname='Athena'/g" package/base-files/files/bin/config_generate
 sed -i "s#_('Firmware Version'), (L\.isObject(boardinfo\.release) ? boardinfo\.release\.description + ' / ' : '') + (luciversion || ''),# \
             _('Firmware Version'),\n \
             E('span', {}, [\n \
@@ -141,15 +141,16 @@ while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
     wireless_idx=\$((\$wireless_idx + 1))
 done
 
-# 启用所有无线网卡，并配置 2.4G 默认为 ac (VHT / Wi-Fi 5) 信号
+# 启用所有无线网卡，设置信道为自动，并配置 2.4G 默认为 ac (VHT / Wi-Fi 5) 信号
 radio_idx=0
 while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio\$radio_idx.disabled='0'
+    uci set wireless.radio\$radio_idx.channel='auto'   # 将该物理网卡的信道设置为自动模式
     
     # 如果是 radio0 (通常为设备的 2.4G 物理网卡)
     if [ "\$radio_idx" = "0" ]; then
         uci set wireless.radio0.htmode='VHT40'      # 开启 2.4G 频段的 VHT40 模式 (802.11ac 2.4G 扩展)
-        uci set wireless.radio0.ieee80211ac='1'     # 开启 ieee80211ac (Wi-Fi 5) 属性支持
+        uci set wireless.radio0.ieee80211ax='1'     # 开启 ieee80211ac (Wi-Fi 5) 属性支持
     fi
     
     radio_idx=\$((\$radio_idx + 1))

@@ -127,11 +127,11 @@ while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
     # 获取该无线接口所绑定的物理网卡设备名 (如 radio0, radio1, radio2)
     dev_name=\$(uci get wireless.@wifi-iface[\$wireless_idx].device)
     
-    if [ "\$dev_name" = "radio0" ]; then
-        # radio0 对应 2.4G 网卡，使用 2G SSID
+    if [ "\$dev_name" = "radio1" ]; then
+        # radio1 对应 2.4G 网卡，使用 2G SSID
         uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_2G}'
     else
-        # radio1 和 radio2 均为 5G 网卡，共享 5G SSID，实现客户端自适应漫游切换
+        # radio0 和 radio2 均为 5G 网卡，共享 5G SSID，实现客户端自适应漫游切换
         uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_5G}'
     fi
     
@@ -147,10 +147,10 @@ while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio\$radio_idx.disabled='0'
     uci set wireless.radio\$radio_idx.channel='auto'   # 将该物理网卡的信道设置为自动模式
     
-    # 如果是 radio0 (通常为设备的 2.4G 物理网卡)
-    if [ "\$radio_idx" = "0" ]; then
-        uci set wireless.radio0.htmode='VHT40'      # 开启 2.4G 频段的 VHT40 模式 (802.11ac 2.4G 扩展)
-        uci set wireless.radio0.ieee80211ax='1'     # 开启 ieee80211ac (Wi-Fi 5) 属性支持
+    # 如果是 radio1 (在您的设备中为 2.4G 物理网卡)
+    if [ "\$radio_idx" = "1" ]; then
+        uci set wireless.radio1.htmode='VHT40'      # 开启 2.4G 频段的 VHT40 模式 (802.11ac 2.4G 扩展)
+        uci set wireless.radio1.ieee80211ax='1'     # 开启 ieee80211ac (Wi-Fi 5) 属性支持
     fi
     
     radio_idx=\$((\$radio_idx + 1))

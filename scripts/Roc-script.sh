@@ -8,10 +8,10 @@ sed -i "s#_('Firmware Version'), (L\.isObject(boardinfo\.release) ? boardinfo\.r
                 ? boardinfo.release.description + ' / '\n \
                 : '') + (luciversion || '') + ' / ',\n \
             E('a', {\n \
-                href: 'https://github.com/laipeng668/openwrt-ci-roc/releases',\n \
+                href: 'https://github.com/ybjbox/openwrt-ci-roc/releases',\n \
                 target: '_blank',\n \
                 rel: 'noopener noreferrer'\n \
-                }, [ 'Built by Roc $(date "+%Y-%m-%d %H:%M:%S")' ])\n \
+                }, [ 'Built by Ryan $(date "+%Y-%m-%d %H:%M:%S")' ])\n \
             ]),#" feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/10_system.js
 
 # 调整NSS驱动q6_region内存区域预留大小（ipq6018.dtsi默认预留85MB，ipq6018-512m.dtsi默认预留55MB，带WiFi必须至少预留54MB，以下分别是改成预留16MB、32MB、64MB和96MB）
@@ -25,15 +25,15 @@ sed -i "s#_('Firmware Version'), (L\.isObject(boardinfo\.release) ? boardinfo\.r
 
 # 移除要替换的包
 rm -rf feeds/luci/applications/luci-app-argon-config
-# rm -rf feeds/luci/applications/luci-app-wechatpush
-# rm -rf feeds/luci/applications/luci-app-appfilter
+rm -rf feeds/luci/applications/luci-app-wechatpush
+rm -rf feeds/luci/applications/luci-app-appfilter
 # rm -rf feeds/luci/applications/luci-app-frpc
 # rm -rf feeds/luci/applications/luci-app-frps
 rm -rf feeds/luci/themes/luci-theme-argon
 rm -rf feeds/packages/net/open-app-filter
 # rm -rf feeds/packages/net/ariang
 # rm -rf feeds/packages/net/aria2
-# rm -rf feeds/packages/net/nginx
+rm -rf feeds/packages/net/nginx
 # rm -rf feeds/packages/net/frp
 rm -rf feeds/packages/lang/golang
 
@@ -74,9 +74,9 @@ git clone --depth=1 https://github.com/NONGFAH/luci-app-athena-led package/luci-
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
 # 自动注入易有云官方订阅源，完美解决 quickstart、istorex 与 iStore 商店的所有编译依赖
-echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
-echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
-echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+# echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+# echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+# echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
 
 # 克隆 Bandix 流量监控插件及其后端依赖
 git clone --depth=1 https://github.com/timsaya/luci-app-bandix package/luci-app-bandix

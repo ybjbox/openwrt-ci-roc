@@ -147,25 +147,11 @@ while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio\$radio_idx.disabled='0'
     uci set wireless.radio\$radio_idx.channel='auto'   # 将所有物理网卡的信道设置为自动模式
     
-    # 1. 辅助 5G 频段 (radio0 - IPQ 集成)：配置为硬件上限 80MHz 频宽
-    if [ "\$radio_idx" = "0" ]; then
-        uci set wireless.radio0.htmode='HE80'       # 设定为该芯片的硬件上限 80MHz 频宽
-        uci set wireless.radio0.ieee80211ax='1'     # 开启 Wi-Fi 6 (ax)
-    fi
-    
-    # 2. 2.4G 频段 (radio1 - IPQ 集成)：强锁为 802.11n 信号，且限制在最大 20MHz 频宽
+    # 2.4G 频段 (radio1 - IPQ 集成)：强锁为 802.11n 信号，且限制在最大 20MHz 频宽
     if [ "\$radio_idx" = "1" ]; then
         uci set wireless.radio1.htmode='HT20'       # 设定为 HT20 (802.11n 20MHz 频宽)
-        uci -q delete wireless.radio1.ieee80211ac  # 清除 802.11ac，强制降级
-        uci -q delete wireless.radio1.ieee80211ax  # 清除 802.11ax
     fi
-    
-    # 3. 核心 5G 频段 (radio2 - 独立 QCN 芯片)：配置为 160MHz 满血频宽
-    if [ "\$radio_idx" = "2" ]; then
-        uci set wireless.radio2.htmode='HE160'      # 开启 QCN 芯片的 160MHz 超大频宽
-        uci set wireless.radio2.ieee80211ax='1'     # 开启 Wi-Fi 6 (ax)
-    fi
-    
+
     radio_idx=\$((\$radio_idx + 1))
 done
 

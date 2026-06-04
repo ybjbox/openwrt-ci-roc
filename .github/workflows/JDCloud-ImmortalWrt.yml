@@ -107,8 +107,6 @@ jobs:
         MY_ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       run: |
         chmod +x $DIY_SCRIPT
-        sed -i -e 's#^git_sparse_clone frp-binary #git_sparse_clone frp-binary-toml #g' \
-            -e 's#^git_sparse_clone frp #git_sparse_clone frp-toml #g' "$DIY_SCRIPT"
         cd $OPENWRT_PATH
         $GITHUB_WORKSPACE/$DIY_SCRIPT
 

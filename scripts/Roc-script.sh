@@ -164,9 +164,15 @@ uci commit dhcp
 uci commit wireless
 uci commit luci
 
-# 6. 修改默认后台密码
+# 6. 修改默认后台密码（实际不生效）
 # echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
 
+# 7. 修改默认软件源为南京大学源（仅适用于 25.12 新版 apk）
+if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
+    sed -i -e 's,https://downloads.immortalwrt.org,https://mirror.nju.edu.cn/immortalwrt,g' \
+           -e 's,https://mirrors.vsean.net/openwrt,https://mirror.nju.edu.cn/immortalwrt,g' \
+           /etc/apk/repositories.d/distfeeds.list
+fi
 exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings

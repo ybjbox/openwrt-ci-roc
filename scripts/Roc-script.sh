@@ -118,7 +118,7 @@ echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.
 echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
 echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
 
-./scripts/feeds update -i -a
+./scripts/feeds update -a
 ./scripts/feeds install -a
 
 # ================= 写入首开自定义初始配置 (uci-defaults) =================

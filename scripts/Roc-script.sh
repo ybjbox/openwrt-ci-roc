@@ -189,7 +189,7 @@ uci commit luci
 
 # 7. 修改默认软件源为南京大学源（仅适用于 25.12 新版 apk）
 if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
-    sed -i -e 's,https://downloads.immortalwrt.org,https://mirror.nju.edu.cn/immortalwrt,g' \
+    sed -i -e '/istore/!{/nas/!s,https://downloads.immortalwrt.org,https://mirror.nju.edu.cn/immortalwrt,g}' \
            -e 's,https://mirrors.vsean.net/openwrt,https://mirror.nju.edu.cn/immortalwrt,g' \
            /etc/apk/repositories.d/distfeeds.list
 fi

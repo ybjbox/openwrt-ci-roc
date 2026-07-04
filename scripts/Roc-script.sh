@@ -103,6 +103,16 @@ git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-open
 # 清理 PassWall 的 chnlist 规则文件
 echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
 
+# 克隆 Bandix 流量监控插件及其后端依赖
+git clone --depth=1 https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
+git clone --depth=1 https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
+
+# 将 bandix 移动到“服务”选项里
+if [ -d package/luci-app-bandix ]; then
+    find package/luci-app-bandix -type f -name "*.json" -exec sed -i 's/"admin\/status\/bandix"/"admin\/services\/bandix"/g' {} +
+    find package/luci-app-bandix -type f -name "*.lua" -exec sed -i 's/{"admin", "status", "bandix"}/{"admin", "services", "bandix"}/g' {} +
+fi
+
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
 

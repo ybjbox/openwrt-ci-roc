@@ -109,8 +109,8 @@ git clone --depth=1 https://github.com/timsaya/openwrt-bandix package/openwrt-ba
 
 # 将 bandix 移动到“服务”选项里
 if [ -d package/luci-app-bandix ]; then
-    find package/luci-app-bandix -type f -name "*.json" -exec sed -i 's/"admin\/status\/bandix"/"admin\/services\/bandix"/g' {} +
-    find package/luci-app-bandix -type f -name "*.lua" -exec sed -i 's/{"admin", "status", "bandix"}/{"admin", "services", "bandix"}/g' {} +
+    find package/luci-app-bandix -type f -exec sed -i 's/admin\/network\/bandix/admin\/services\/bandix/g' {} +
+    find package/luci-app-bandix -type f -exec sed -i 's/{"admin", "network", "bandix"}/{"admin", "services", "bandix"}/g' {} +
 fi
 
 # 自动注入易有云官方订阅源，完美解决 quickstart、istorex 与 iStore 商店的所有编译依赖

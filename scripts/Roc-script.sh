@@ -113,6 +113,11 @@ if [ -d package/luci-app-bandix ]; then
     find package/luci-app-bandix -type f -name "*.lua" -exec sed -i 's/{"admin", "status", "bandix"}/{"admin", "services", "bandix"}/g' {} +
 fi
 
+# 自动注入易有云官方订阅源，完美解决 quickstart、istorex 与 iStore 商店的所有编译依赖
+echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
 

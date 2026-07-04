@@ -12,7 +12,7 @@
 - [云编译来源](https://github.com/haiibo/OpenWrt) [视频教程](https://www.youtube.com/watch?v=6j4ofS0GT38) [问题合集](https://github.com/LiBwrt/openwrt-6.x/issues)
 
 ## 仓库说明
-- 本人 fork 的仓库：[ImmortalWrt](https://github.com/laipeng668/immortalwrt) [LibWrt](https://github.com/laipeng668/openwrt-6.x)，内容大体一致。
+- 本人 fork 的仓库：[ImmortalWrt](https://github.com/ybjbox/immortalwrt) [LibWrt](https://github.com/ybjbox/openwrt-6.x)，内容大体一致。
 - `ImmortalWrt` 和 `LibWrt` 分别通过 rebase 和 merge 进行更新，相互印证。
 - `LibWrt` 因为 DTS 更为丰富，所以支持更多的机型。
 
@@ -23,7 +23,7 @@
 - 插件对应名称及功能请参考恩山网友帖子：[OpenWrt软件包全量解释](https://www.right.com.cn/FORUM/forum.php?mod=viewthread&tid=8384897)。
 - 如需修改默认 IP、添加或删除插件包以及一些其他设置请在 `Roc-script.sh` 文件内修改。
 - 添加或修改 `xx.yml` 文件，最后点击 `Actions` 运行要编译的 `workflow` 即可开始编译。
-- 编译大概需要 1-2 小时，编译完成后在仓库主页 [Releases](https://github.com/laipeng668/openwrt-ci-roc/releases) 对应 Tag 标签内下载固件。
+- 编译大概需要 1-2 小时，编译完成后在仓库主页 [Releases](https://github.com/ybjbox/openwrt-ci-roc/releases) 对应 Tag 标签内下载固件。
 
 ## 单独编译软件包
 - 点击 `Actions` 运行 `Build-Packages`，`sdk_version` 可选择 `ALL` 同时编译全部版本，或选择 `main` 主线 snapshots、`23.05`、`24.10`、`25.12` 系列的最新稳定版 SDK。

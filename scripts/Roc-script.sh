@@ -205,4 +205,3 @@ fi
 exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
-Aria2

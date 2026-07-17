@@ -220,18 +220,21 @@ while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
     wireless_idx=\$((\$wireless_idx + 1))
 done
 
-# 启用所有无线网卡，并根据频段自适应配置频宽
+# 启用所有无线网卡，并根据频段自适应配置信道与频宽
 radio_idx=0
 while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio\$radio_idx.disabled='0'
-    uci set wireless.radio\$radio_idx.channel='auto'   # 将所有物理网卡的信道设置为自动模式
     
     hw_band=\$(uci -q get wireless.radio\$radio_idx.band)
     hw_mode=\$(uci -q get wireless.radio\$radio_idx.hwmode)
     
-    # 2.4G 频段：强锁为 802.11n 信号，且限制在最大 20MHz 频宽以减少同频干扰
+    # 2.4G 频段：强锁为 11 信道，且限制在最大 20MHz 频宽以减少同频干扰
     if [ "\$hw_band" = "2g" ] || [ "\$hw_mode" = "11g" ]; then
+        uci set wireless.radio\$radio_idx.channel='11'
         uci set wireless.radio\$radio_idx.htmode='HT20'
+    else
+        # 5G 频段：保留自动信道
+        uci set wireless.radio\$radio_idx.channel='auto'
     fi
 
     radio_idx=\$((\$radio_idx + 1))

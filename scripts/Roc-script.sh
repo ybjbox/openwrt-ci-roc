@@ -199,11 +199,15 @@ while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
     # 获取该无线接口所绑定的物理网卡设备名 (如 radio0, radio1, radio2)
     dev_name=\$(uci get wireless.@wifi-iface[\$wireless_idx].device)
     
-    if [ "\$dev_name" = "radio1" ]; then
-        # radio1 对应 2.4G 网卡，使用 2G SSID
+    # 动态获取该物理网卡的频段 (2G 或 5G)
+    hw_band=\$(uci -q get wireless.\$dev_name.band)
+    hw_mode=\$(uci -q get wireless.\$dev_name.hwmode)
+    
+    if [ "\$hw_band" = "2g" ] || [ "\$hw_mode" = "11g" ]; then
+        # 判定为 2.4G 网卡，使用 2G SSID
         uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_2G}'
     else
-        # radio0 和 radio2 均为 5G 网卡，共享 5G SSID，实现客户端自适应漫游切换
+        # 判定为 5G 网卡，使用 5G SSID，实现漫游切换
         uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_5G}'
     fi
     
@@ -213,15 +217,18 @@ while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
     wireless_idx=\$((\$wireless_idx + 1))
 done
 
-# 启用所有无线网卡，并配置自动信道
+# 启用所有无线网卡，并根据频段自适应配置频宽
 radio_idx=0
 while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
     uci set wireless.radio\$radio_idx.disabled='0'
     uci set wireless.radio\$radio_idx.channel='auto'   # 将所有物理网卡的信道设置为自动模式
     
-    # 2.4G 频段 (radio1 - IPQ 集成)：强锁为 802.11n 信号，且限制在最大 20MHz 频宽
-    if [ "\$radio_idx" = "1" ]; then
-        uci set wireless.radio1.htmode='HT20'       # 设定为 HT20 (802.11n 20MHz 频宽)
+    hw_band=\$(uci -q get wireless.radio\$radio_idx.band)
+    hw_mode=\$(uci -q get wireless.radio\$radio_idx.hwmode)
+    
+    # 2.4G 频段：强锁为 802.11n 信号，且限制在最大 20MHz 频宽以减少同频干扰
+    if [ "\$hw_band" = "2g" ] || [ "\$hw_mode" = "11g" ]; then
+        uci set wireless.radio\$radio_idx.htmode='HT20'
     fi
 
     radio_idx=\$((\$radio_idx + 1))

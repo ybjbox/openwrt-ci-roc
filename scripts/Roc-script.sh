@@ -206,3 +206,17 @@ fi
 exit 0
 EOF
 chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
+
+# 8. 升级保留配置时剔除 OpenClash 智能权重大数据(smart_weight_data.csv 及其备份)
+#    否则 sysupgrade 打包这几百MB文件会卡死, 导致 LuCI "保留配置升级" 无响应
+mkdir -p package/base-files/files/lib/upgrade/keep.d
+cat << 'KEEPEOF' > package/base-files/files/lib/upgrade/keep.d/99-trim-openclash
+#!/bin/sh
+# sysupgrade 收集 conffiles 后、打包前执行(由 /lib/upgrade/keep.d 机制触发)
+# 从保留配置清单剔除 OpenClash 运行时大数据, 避免升级卡死
+CONF="/tmp/sysupgrade.conffiles"
+if [ -f "$CONF" ]; then
+    sed -i '/smart_weight_data/d' "$CONF"
+fi
+KEEPEOF
+chmod +x package/base-files/files/lib/upgrade/keep.d/99-trim-openclash

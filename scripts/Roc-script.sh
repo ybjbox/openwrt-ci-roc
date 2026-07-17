@@ -130,4 +130,79 @@ fi
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
 
-# ================= 写入首开自定义初始配置 (uci-defaults) ==========
+
+# ================= 写入首开自定义初始配置 (uci-defaults) =================
+mkdir -p package/base-files/files/etc/uci-defaults
+cat << EOF > package/base-files/files/etc/uci-defaults/99-custom-settings
+#!/bin/sh
+
+# 1. 默认 PPPoE 拨号设置
+uci set network.wan.proto='pppoe'
+uci set network.wan.username='${MY_PPPOE_USERNAME}'
+uci set network.wan.password='${MY_PPPOE_PASSWORD}'
+
+# 2. 默认关闭 IPv6 支持
+uci set network.wan6.disabled='1'
+uci set network.lan.delegate='0'
+uci set network.lan.ipv6='0'
+uci set network.wan.ipv6='0'
+uci set dhcp.lan.dhcpv6='disabled'
+uci -q delete dhcp.lan.ra
+uci -q delete dhcp.lan.dhcpv6
+/etc/init.d/odhcpd disable
+
+# 3. 默认无线配置 (2.4G 与双5G 独立命名，双5G 名字相同实现自动无缝漫游)
+wireless_idx=0
+while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
+    # 获取该无线接口所绑定的物理网卡设备名 (如 radio0, radio1, radio2)
+    dev_name=\$(uci get wireless.@wifi-iface[\$wireless_idx].device)
+    
+    if [ "\$dev_name" = "radio1" ]; then
+        # radio1 对应 2.4G 网卡，使用 2G SSID
+        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_2G}'
+    else
+        # radio0 和 radio2 均为 5G 网卡，共享 5G SSID，实现客户端自适应漫游切换
+        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_5G}'
+    fi
+    
+    # 统一无线安全加密协议与 WiFi 密码
+    uci set wireless.@wifi-iface[\$wireless_idx].encryption='psk2'
+    uci set wireless.@wifi-iface[\$wireless_idx].key='${MY_WIFI_PASSWORD}'
+    wireless_idx=\$((\$wireless_idx + 1))
+done
+
+# 启用所有无线网卡，并配置自动信道
+radio_idx=0
+while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
+    uci set wireless.radio\$radio_idx.disabled='0'
+    uci set wireless.radio\$radio_idx.channel='auto'   # 将所有物理网卡的信道设置为自动模式
+    
+    # 2.4G 频段 (radio1 - IPQ 集成)：强锁为 802.11n 信号，且限制在最大 20MHz 频宽
+    if [ "\$radio_idx" = "1" ]; then
+        uci set wireless.radio1.htmode='HT20'       # 设定为 HT20 (802.11n 20MHz 频宽)
+    fi
+
+    radio_idx=\$((\$radio_idx + 1))
+done
+
+# 4. 默认主题设置为 Aurora
+uci set luci.main.mediaurlbase='/luci-static/aurora'
+
+# 5. 提交并应用所有配置
+uci commit network
+uci commit dhcp
+uci commit wireless
+uci commit luci
+
+# 6. 修改默认后台密码（实际不生效）
+# echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
+
+# 7. 修改默认软件源为南京大学源（仅适用于 25.12 新版 apk）
+if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
+    sed -i -e '/istore/!{/nas/!s,https://downloads.immortalwrt.org,https://mirror.nju.edu.cn/immortalwrt,g}' \
+           -e 's,https://mirrors.vsean.net/openwrt,https://mirror.nju.edu.cn/immortalwrt,g' \
+           /etc/apk/repositories.d/distfeeds.list
+fi
+exit 0
+EOF
+chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings

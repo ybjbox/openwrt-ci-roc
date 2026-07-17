@@ -27,4 +27,4 @@ jobs:
       manifest_file: immortalwrt-qualcommax-ipq60xx.manifest
       delete_old_workflows: true
       release_summary: >-
-        这是开启全功能NSS的6.12内核固件，默认主题为Aurora；该固件在ImmortalWrt的基础上，添加了额外的软件包cpufreq、upnp、autoreboot、uhttpd、diskman、watchcat、nginx-full、luci-theme-argon(Argon主题)、luci-app-wechatpush(微信推送)、luci-app-oaf(应用过滤)、luci-app-lucky(Lucky大内网穿透)、luci-app-openclash(OpenClash)、bandix(流量看板)，并添加了若干工具，具体详见JDCloud.config和General.config。
+        这是开启全功能NSS的6.12内核固件，默认主题为Aurora(同时内置Argon备选)；在ImmortalWrt基础上定制：网络与系统——cpufreq、upnp、autoreboot、uhttpd、diskman、watchcat、nginx-full；代理与穿透——luci-app-openclash(OpenClash)、luci-app-lucky(Lucky大内网穿透)、luci-app-oaf(应用过滤)；推送与监控——luci-app-wechatpush(微信推送)、bandix(流量看板)；实用工具——tmux、htop、btop、nano-full、openssh-sftp-server、fdisk/cfdisk/sgdisk、tune2fs/fstrim、smartmontools、zram-swap、coremark、autocore、automount(USB自动挂载)、luci-mod-rpc/luci-compat/luci-lib-ipkg(LuCI兼容层)。出厂环境已按个人网络定制：LAN IP 10.0.0.1、主机名Athena、PPPoE拨号、关闭IPv6、双5G共享SSID无缝漫游+2.4G独立SSID、软件源南京大学镜像；WiFi与PPPoE凭据经仓库Secrets注入。详见JDCloud.config与General.config。

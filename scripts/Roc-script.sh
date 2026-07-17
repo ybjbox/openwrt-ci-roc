@@ -96,6 +96,10 @@ git clone --depth=1 https://github.com/laipeng668/luci-app-gecoosac package/luci
 git clone --depth=1 https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
+# 克隆 wrtbwmon 流量监控核心与 LuCI 面板，修复 wechatpush 依赖警告并启用设备流量统计
+git clone --depth=1 https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
+git clone --depth=1 https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
+
 ### PassWall & OpenClash ###
 
 # 移除 OpenWrt Feeds 自带的核心库

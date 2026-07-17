@@ -136,6 +136,9 @@ chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app
 git_clone https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
 git_clone https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
 
+# 克隆 sbwml 的 quickfile 极速网页文件管理器
+git_clone https://github.com/sbwml/luci-app-quickfile.git package/luci-app-quickfile
+
 ### PassWall & OpenClash ###
 
 # 移除 OpenWrt Feeds 自带的核心库

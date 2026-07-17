@@ -46,7 +46,25 @@ rm -rf feeds/packages/net/nginx
 rm -rf feeds/packages/net/frp
 rm -rf feeds/packages/lang/golang
 
-# Git稀疏克隆，只克隆指定目录到本地
+# 带有 3 次重试机制的 git clone，极大提高 GitHub 网络波动时的编译成功率
+function git_clone() {
+  local url="$1"
+  local dest="$2"
+  local max_retries=3
+  local count=0
+  while [ $count -lt $max_retries ]; do
+    if git clone --depth=1 "$url" "$dest"; then
+      return 0
+    fi
+    count=$((count + 1))
+    echo "Warning: git clone failed for $url. Retrying ($count/$max_retries)..."
+    sleep 3
+  done
+  echo "Error: git clone failed for $url after $max_retries attempts." >&2
+  return 1
+}
+
+# Git稀疏克隆，带 3 次重试机制
 function git_sparse_clone() {
   local branch="$1"
   local repourl="$2"
@@ -55,7 +73,25 @@ function git_sparse_clone() {
 
   repodir="$(basename "${repourl%.git}")"
   rm -rf "$repodir"
-  git clone --depth=1 -b "$branch" --single-branch --filter=blob:none --sparse "$repourl" "$repodir"
+
+  local max_retries=3
+  local count=0
+  local success=1
+  while [ $count -lt $max_retries ]; do
+    if git clone --depth=1 -b "$branch" --single-branch --filter=blob:none --sparse "$repourl" "$repodir"; then
+      success=0
+      break
+    fi
+    count=$((count + 1))
+    echo "Warning: git sparse clone failed for $repourl. Retrying ($count/$max_retries)..."
+    sleep 3
+  done
+
+  if [ $success -ne 0 ]; then
+    echo "Error: git sparse clone failed for $repourl after $max_retries attempts." >&2
+    return 1
+  fi
+
   (
     cd "$repodir"
     git sparse-checkout set "$@"
@@ -84,41 +120,41 @@ git_sparse_clone master https://github.com/immortalwrt/luci applications/luci-ap
 mv -f package/luci-app-upnp feeds/luci/applications/luci-app-upnp
 git_sparse_clone master https://github.com/immortalwrt/luci applications/luci-app-wol
 mv -f package/luci-app-wol feeds/luci/applications/luci-app-wol
-git clone --depth=1 https://github.com/jerrykuku/luci-theme-argon feeds/luci/themes/luci-theme-argon
-git clone --depth=1 https://github.com/jerrykuku/luci-app-argon-config feeds/luci/applications/luci-app-argon-config
-git clone --depth=1 https://github.com/eamonxg/luci-theme-aurora feeds/luci/themes/luci-theme-aurora
-git clone --depth=1 https://github.com/eamonxg/luci-app-aurora-config feeds/luci/applications/luci-app-aurora-config
-git clone --depth=1 https://github.com/laipeng668/luci-app-openlist2 package/openlist2
-git clone --depth=1 https://github.com/gdy666/luci-app-lucky package/luci-app-lucky
-git clone --depth=1 https://github.com/tty228/luci-app-wechatpush package/luci-app-wechatpush
-git clone --depth=1 https://github.com/destan19/OpenAppFilter.git package/OpenAppFilter
-git clone --depth=1 https://github.com/laipeng668/luci-app-gecoosac package/luci-app-gecoosac
-git clone --depth=1 https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
+git_clone https://github.com/jerrykuku/luci-theme-argon feeds/luci/themes/luci-theme-argon
+git_clone https://github.com/jerrykuku/luci-app-argon-config feeds/luci/applications/luci-app-argon-config
+git_clone https://github.com/eamonxg/luci-theme-aurora feeds/luci/themes/luci-theme-aurora
+git_clone https://github.com/eamonxg/luci-app-aurora-config feeds/luci/applications/luci-app-aurora-config
+git_clone https://github.com/laipeng668/luci-app-openlist2 package/openlist2
+git_clone https://github.com/gdy666/luci-app-lucky package/luci-app-lucky
+git_clone https://github.com/tty228/luci-app-wechatpush package/luci-app-wechatpush
+git_clone https://github.com/destan19/OpenAppFilter.git package/OpenAppFilter
+git_clone https://github.com/laipeng668/luci-app-gecoosac package/luci-app-gecoosac
+git_clone https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
 # 克隆 wrtbwmon 流量监控核心与 LuCI 面板，修复 wechatpush 依赖警告并启用设备流量统计
-git clone --depth=1 https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
-git clone --depth=1 https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
+git_clone https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
+git_clone https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
 
 ### PassWall & OpenClash ###
 
 # 移除 OpenWrt Feeds 自带的核心库
 rm -rf feeds/packages/net/{xray-core,v2ray-geodata,sing-box,chinadns-ng,dns2socks,hysteria,ipt2socks,microsocks,naiveproxy,shadowsocks-libev,shadowsocks-rust,shadowsocksr-libev,simple-obfs,tcping,trojan-plus,tuic-client,v2ray-plugin,xray-plugin,geoview,shadow-tls}
-git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/passwall-packages
+git_clone https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/passwall-packages
 
 # 移除 OpenWrt Feeds 过时的LuCI版本
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf feeds/luci/applications/luci-app-openclash
-git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall package/luci-app-passwall
-git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall2 package/luci-app-passwall2
-git clone --depth=1 https://github.com/vernesong/OpenClash package/luci-app-openclash
+git_clone https://github.com/Openwrt-Passwall/openwrt-passwall package/luci-app-passwall
+git_clone https://github.com/Openwrt-Passwall/openwrt-passwall2 package/luci-app-passwall2
+git_clone https://github.com/vernesong/OpenClash package/luci-app-openclash
 
 # 清理 PassWall 的 chnlist 规则文件
 echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
 
 # 克隆 Bandix 流量监控插件及其后端依赖
-git clone --depth=1 https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
-git clone --depth=1 https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
+git_clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix
+git_clone https://github.com/timsaya/openwrt-bandix package/openwrt-bandix
 
 # 将 bandix 移动到“服务”选项里
 if [ -d package/luci-app-bandix ]; then
@@ -140,10 +176,12 @@ mkdir -p package/base-files/files/etc/uci-defaults
 cat << EOF > package/base-files/files/etc/uci-defaults/99-custom-settings
 #!/bin/sh
 
-# 1. 默认 PPPoE 拨号设置
-uci set network.wan.proto='pppoe'
-uci set network.wan.username='${MY_PPPOE_USERNAME}'
-uci set network.wan.password='${MY_PPPOE_PASSWORD}'
+# 1. 默认 PPPoE 拨号设置 (仅在凭据不为空时配置，否则保留默认 DHCP 模式)
+if [ -n "${MY_PPPOE_USERNAME}" ] && [ -n "${MY_PPPOE_PASSWORD}" ]; then
+    uci set network.wan.proto='pppoe'
+    uci set network.wan.username='${MY_PPPOE_USERNAME}'
+    uci set network.wan.password='${MY_PPPOE_PASSWORD}'
+fi
 
 # 2. 默认关闭 IPv6 支持
 uci set network.wan6.disabled='1'
@@ -198,8 +236,10 @@ uci commit dhcp
 uci commit wireless
 uci commit luci
 
-# 6. 修改默认后台密码（实际不生效）
-# echo "root:${MY_ADMIN_PASSWORD}" | chpasswd
+# 6. 修改默认后台密码（使用 passwd 管道替代不支持的 chpasswd）
+if [ -n "${MY_ADMIN_PASSWORD}" ]; then
+    echo -e "${MY_ADMIN_PASSWORD}\n${MY_ADMIN_PASSWORD}" | passwd root
+fi
 
 # 7. 修改默认软件源为南京大学源（仅适用于 25.12 新版 apk）
 if [ -f /etc/apk/repositories.d/distfeeds.list ]; then

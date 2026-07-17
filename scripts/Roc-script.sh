@@ -269,5 +269,5 @@ chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 #    注: keep.d 目录文件仅作为备份白名单(cat 并作为 find 参数)，不可作为脚本执行。
 #    此处直接在编译期通过 sed 修改 sysupgrade 脚本，在打包前动态过滤 conffiles 列表。
 if [ -f package/base-files/files/sbin/sysupgrade ]; then
-    sed -i '/s,\^,\/,/i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
+    sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi

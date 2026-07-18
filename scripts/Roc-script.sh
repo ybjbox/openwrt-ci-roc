@@ -243,6 +243,21 @@ done
 # 4. 默认主题设置为 Aurora
 uci set luci.main.mediaurlbase='/luci-static/aurora'
 
+# 4.5 适配 QuickFile 文件管理器的 Nginx 监听与 SSL 重定向设置（避免 HTTP 重定向到 SSL 导致 x509 证书校验失败）
+if [ -f /etc/config/nginx ]; then
+    uci set nginx.global.uci_enable='true'
+    uci del nginx._lan 2>/dev/null || true
+    uci del nginx._redirect2ssl 2>/dev/null || true
+    uci add nginx server >/dev/null 2>&1 || true
+    uci rename nginx.@server[0]='_lan' 2>/dev/null || true
+    uci set nginx._lan.server_name='_lan'
+    uci add_list nginx._lan.listen='80 default_server'
+    uci add_list nginx._lan.listen='[::]:80 default_server'
+    uci add_list nginx._lan.include='conf.d/*.locations'
+    uci set nginx._lan.access_log='off; # logd openwrt'
+    uci commit nginx
+fi
+
 # 5. 提交并应用所有配置
 uci commit network
 uci commit dhcp
@@ -271,8 +286,3 @@ chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi
-
-# 9. 强制从编译目标默认包列表中移除 uhttpd 及 uhttpd-mod-ubus，防止 make defconfig 自动拉回
-sed -i 's/uhttpd //g; s/uhttpd-mod-ubus //g' include/target.mk 2>/dev/null || true
-find target/linux/ -name "Makefile" -exec sed -i 's/uhttpd //g; s/uhttpd-mod-ubus //g' {} + 2>/dev/null || true
-

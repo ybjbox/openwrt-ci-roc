@@ -258,6 +258,10 @@ if [ -f /etc/config/nginx ]; then
     uci commit nginx
 fi
 
+# 4.6 解除 uWSGI 进程的虚拟内存上限 (limit-as = 1000)，防止 Go 语言二进制（如 Lucky）在堆内存分配时抛出 SIGSEGV 崩溃导致界面显示“未安装”
+sed -i 's/limit-as = 1000/; limit-as = 1000/g' /etc/uwsgi/vassals/*.ini 2>/dev/null || true
+/etc/init.d/uwsgi restart 2>/dev/null || true
+
 # 5. 提交并应用所有配置
 uci commit network
 uci commit dhcp

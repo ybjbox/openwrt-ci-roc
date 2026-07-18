@@ -271,3 +271,8 @@ chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi
+
+# 9. 强制从编译目标默认包列表中移除 uhttpd 及 uhttpd-mod-ubus，防止 make defconfig 自动拉回
+sed -i 's/uhttpd //g; s/uhttpd-mod-ubus //g' include/target.mk 2>/dev/null || true
+find target/linux/ -name "Makefile" -exec sed -i 's/uhttpd //g; s/uhttpd-mod-ubus //g' {} + 2>/dev/null || true
+

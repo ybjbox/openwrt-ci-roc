@@ -203,6 +203,12 @@ jobs:
         if [ "${{ inputs.remove_sqm_scripts_nss }}" = "true" ]; then
           sed -i '/CONFIG_PACKAGE_sqm-scripts-nss=y/d' .config
         fi
+        sed -i '/CONFIG_PACKAGE_uhttpd/d' .config
+        sed -i '/CONFIG_PACKAGE_luci-app-uhttpd/d' .config
+        sed -i '/CONFIG_PACKAGE_luci-light/d' .config
+        echo "# CONFIG_PACKAGE_uhttpd is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-app-uhttpd is not set" >> .config
+        echo "# CONFIG_PACKAGE_luci-light is not set" >> .config
         make defconfig
         make download -j"$(nproc)"
 

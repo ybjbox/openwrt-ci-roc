@@ -47,6 +47,10 @@ rm -rf feeds/packages/net/aria2
 rm -rf feeds/packages/net/nginx
 rm -rf feeds/packages/net/frp
 rm -rf feeds/packages/lang/golang
+rm -rf feeds/packages/net/smartdns
+rm -rf feeds/luci/applications/luci-app-smartdns
+rm -rf feeds/packages/net/mosdns
+rm -rf feeds/luci/applications/luci-app-mosdns
 
 # 带有 3 次重试机制的 git clone，极大提高 GitHub 网络波动时的编译成功率
 function git_clone() {
@@ -134,12 +138,19 @@ git_clone https://github.com/laipeng668/luci-app-gecoosac package/luci-app-gecoo
 git_clone https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
-# 克隆 wrtbwmon 流量监控核心与 LuCI 面板，修复 wechatpush 依赖警告并启用设备流量统计
-git_clone https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
-git_clone https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
+# 移除 wrtbwmon 克隆以规避旧版 iptables 拦截链
+# git_clone https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
+# git_clone https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
 
 # 克隆 sbwml 的 quickfile 极速网页文件管理器
 git_clone https://github.com/sbwml/luci-app-quickfile.git package/luci-app-quickfile
+
+# 替换为最新官方版 SmartDNS 核心与 LuCI
+git_clone https://github.com/pymumu/openwrt-smartdns package/smartdns
+git_clone https://github.com/pymumu/luci-app-smartdns package/luci-app-smartdns
+
+# 替换为最新社区版 MosDNS 核心与 LuCI
+git_clone https://github.com/sbwml/luci-app-mosdns package/luci-app-mosdns
 
 ### PassWall & OpenClash ###
 

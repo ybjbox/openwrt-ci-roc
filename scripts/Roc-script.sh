@@ -38,6 +38,8 @@ rm -rf feeds/luci/applications/luci-app-frps
 rm -rf feeds/luci/applications/luci-app-upnp
 rm -rf feeds/luci/applications/luci-app-wol
 rm -rf feeds/luci/themes/luci-theme-argon
+rm -rf feeds/luci/applications/luci-app-wrtbwmon
+rm -rf feeds/packages/net/wrtbwmon
 rm -rf feeds/packages/net/open-app-filter
 rm -rf feeds/packages/net/miniupnpd
 rm -rf feeds/packages/net/ariang
@@ -289,4 +291,10 @@ chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 #    此处直接在编译期通过 sed 修改 sysupgrade 脚本，在打包前动态过滤 conffiles 列表。
 if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
+fi
+
+# 在 LuCI DHCP 静态地址分配界面添加“中文备注 (Comment)”控件
+dhcp_js="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
+if [ -f "$dhcp_js" ]; then
+    sed -i "/s\.option.*'ip'/a \\		o = s.option(form.Value, 'comment', _('Comment'));" "$dhcp_js"
 fi

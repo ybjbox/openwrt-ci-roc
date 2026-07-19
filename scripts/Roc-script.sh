@@ -149,6 +149,11 @@ git_clone https://github.com/sbwml/luci-app-quickfile.git package/luci-app-quick
 git_clone https://github.com/pymumu/openwrt-smartdns package/smartdns
 git_clone https://github.com/pymumu/luci-app-smartdns package/luci-app-smartdns
 
+# 修复 GCC 14 / Musl 环境下严苛 Warning 导致 SmartDNS 编译中断的问题
+if [ -f package/smartdns/Makefile ]; then
+    echo 'TARGET_CFLAGS += -Wno-error -Wno-format-security' >> package/smartdns/Makefile
+fi
+
 # 替换为最新社区版 MosDNS 核心与 LuCI
 git_clone https://github.com/sbwml/luci-app-mosdns package/luci-app-mosdns
 

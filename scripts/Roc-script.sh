@@ -151,6 +151,7 @@ git_clone https://github.com/pymumu/luci-app-smartdns package/luci-app-smartdns
 
 # 修复 GCC 14 / Musl 环境下严苛 Warning 导致 SmartDNS 编译中断的问题并跳过 Hash 校验
 if [ -f package/smartdns/Makefile ]; then
+    sed -i 's/PKG_MIRROR_HASH:=.*/PKG_MIRROR_HASH:=skip/g' package/smartdns/Makefile
     sed -i 's/PKG_HASH:=.*/PKG_HASH:=skip/g' package/smartdns/Makefile
     echo 'TARGET_CFLAGS += -Wno-error -Wno-format-security' >> package/smartdns/Makefile
 fi

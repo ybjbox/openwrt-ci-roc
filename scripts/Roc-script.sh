@@ -293,8 +293,9 @@ if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi
 
-# 在 LuCI DHCP 静态地址分配界面添加“中文备注 (Comment)”控件
+# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件
 dhcp_js="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
 if [ -f "$dhcp_js" ]; then
-    sed -i "/s\.option.*'ip'/a \\		o = s.option(form.Value, 'comment', _('Comment'));" "$dhcp_js"
+    sed -i "/so = ss\.option(form\.Value, 'ip'/a\\
+\t\tso = ss.option(form.Value, 'comment', _('Comment'));\n\t\tso.rmempty = true;" "$dhcp_js"
 fi

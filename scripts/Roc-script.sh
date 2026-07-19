@@ -311,12 +311,13 @@ if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi
 
-# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件 (使用 files/ 机制防止被 feeds install 覆盖)
-mkdir -p package/base-files/files/www/luci-static/resources/view/network/
+# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件
+rm -rf package/base-files/files/www/luci-static/resources/view/network/dhcp.js
 dhcp_src="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
-dhcp_dst="package/base-files/files/www/luci-static/resources/view/network/dhcp.js"
-if [ -f "$dhcp_src" ]; then
-    cp -f "$dhcp_src" "$dhcp_dst"
-    sed -i "/so = ss\.option(form\.Value, 'ip'/a\\
-\t\tso = ss.option(form.Value, 'comment', _('Comment'));\n\t\tso.rmempty = true;" "$dhcp_dst"
-fi
+dhcp_pkg="package/feeds/luci/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
+for file in "$dhcp_src" "$dhcp_pkg"; do
+    if [ -f "$file" ]; then
+        sed -i "/so = ss\.option(form\.Value, 'ip'/a\\
+\t\tso = ss.option(form.Value, 'comment', _('Comment'));\n\t\tso.rmempty = true;" "$file"
+    fi
+done

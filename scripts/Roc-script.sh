@@ -356,3 +356,31 @@ except Exception as e:
     print("dhcp patch error:", e)
 '
 fi
+
+# 在“状态 - 概览” (Status Overview) 页面的 DHCP 活动租约列表中同步显示中文备注
+dhcp_status_src="feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/40_dhcp.js"
+if [ -f "$dhcp_status_src" ]; then
+    python3 -c '
+path = "feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/40_dhcp.js"
+try:
+    with open(path, "r", encoding="utf-8") as f: code = f.read()
+
+    if "uci.load(\x27dhcp\x27)" not in code:
+        code = code.replace("network.getHostHints()", "network.getHostHints(),\n\t\t\tuci.load(\x27dhcp\x27)")
+
+    if "mac_comments" not in code:
+        target = "var leases = Array.isArray(leaseinfo.dhcp_leases)"
+        helper = "var mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });\n\t\t"
+        code = code.replace(target, helper + target)
+
+        code = code.replace(
+            "\x27%h\x27.format(host || \x27-\x27)",
+            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\t\t\treturn \x27%s\x27.format(host || \x27-\x27)"
+        )
+
+    with open(path, "w", encoding="utf-8") as f: f.write(code)
+except Exception as e:
+    print("40_dhcp patch error:", e)
+'
+fi
+

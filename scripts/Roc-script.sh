@@ -342,13 +342,13 @@ try:
         # 3. 替换 IPv4 活动租约的 host 拼接与 %s (优化格式避免嵌套冗长)
         code = code.replace(
             "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),",
-            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) { let raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
+            "var cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) { var raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
         )
 
         # 4. 替换 IPv6 活动租约的 host 拼接与 %s
         code = code.replace(
             "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs",
-            "let cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) { let raw_h = lease.hostname || name; host = raw_h ? (cmt6 + \x27 (\x27 + raw_h + \x27)\x27) : cmt6; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
+            "var cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) { var raw_h = lease.hostname || name; host = raw_h ? (cmt6 + \x27 (\x27 + raw_h + \x27)\x27) : cmt6; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
         )
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)
@@ -366,17 +366,18 @@ try:
     with open(path, "r", encoding="utf-8") as f: code = f.read()
 
     if "uci.load(\x27dhcp\x27)" not in code:
-        code = code.replace("network.getHostHints()", "network.getHostHints(),\n\t\t\tuci.load(\x27dhcp\x27)")
+        code = code.replace("network.getHostHints()", "network.getHostHints(),\n\t\t\tL.resolveDefault(uci.load(\x27dhcp\x27))")
 
     if "mac_comments" not in code:
-        target = "var leases = Array.isArray(leaseinfo.dhcp_leases)"
-        helper = "var mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });\n\t\t"
-        code = code.replace(target, helper + target)
+        target = "const machints = host_hints.getMACHints(false);"
+        helper = "const machints = host_hints.getMACHints(false);\n\t\tvar mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });\n\t\t"
+        code = code.replace(target, helper)
 
         code = code.replace(
-            "\x27%h\x27.format(host || \x27-\x27)",
-            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\tif (cmt) { let raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\t\t\treturn \x27%s\x27.format(host || \x27-\x27)"
+            "if (hint && lease.hostname && lease.hostname != hint[1])",
+            "if (lease.macaddr && mac_comments[lease.macaddr.toLowerCase()]) { var cmt = mac_comments[lease.macaddr.toLowerCase()], raw_h = lease.hostname || (hint ? hint[1] : null); host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\t\t\telse if (hint && lease.hostname && lease.hostname != hint[1])"
         )
+        code = code.replace("\x27%h\x27.format(host || \x27-\x27)", "\x27%s\x27.format(host || \x27-\x27)")
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)
 except Exception as e:

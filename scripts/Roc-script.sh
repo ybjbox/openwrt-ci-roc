@@ -337,12 +337,13 @@ try:
         replacement1 = "var co = ss.option(form.Value, \x27comment\x27, _(\x27Comment\x27));\n\t\tco.rmempty = true;\n\n\t\t" + target1
         code = code.replace(target1, replacement1)
 
-    # 3. 插入活动租约列表中文备注 (格式: 飞牛 (RyanCloud))
+    # 3. 插入活动租约列表中文备注 (格式: 飞牛 (RyanCloud)) 并将限制中文字符的 %h 格式化转换为 %s
     if "mac_cmts" not in code:
         target2 = "cbi_update_table(\x27#lease_status_table\x27,"
         helper = "var mac_cmts = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(e) { if (s.comment) mac_cmts[e.toLowerCase()] = s.comment; }); });\n\t\t\t\t\t"
         code = code.replace(target2, helper + target2)
         code = code.replace("const columns = [", "let cmt = lease.macaddr ? mac_cmts[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\t\t\t\t\tconst columns = [")
+        code = code.replace("\x27%h\x27.format(host || \x27-\x27)", "\x27%s\x27.format(host || \x27-\x27)")
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)
 except Exception as e:

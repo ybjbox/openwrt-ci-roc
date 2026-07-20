@@ -138,6 +138,9 @@ git_clone https://github.com/laipeng668/luci-app-gecoosac package/luci-app-gecoo
 git_clone https://github.com/NONGFAH/luci-app-athena-led package/luci-app-athena-led
 chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 
+# 克隆个人自定义插件包仓库 (包含 DHCP 中文备注插件 luci-app-dhcp-comment)
+git_clone https://github.com/ybjbox/openwrt-packages package/openwrt-packages
+
 # 移除 wrtbwmon 克隆以规避旧版 iptables 拦截链
 # git_clone https://github.com/brvphoenix/wrtbwmon.git package/wrtbwmon
 # git_clone https://github.com/brvphoenix/luci-app-wrtbwmon.git package/luci-app-wrtbwmon
@@ -319,69 +322,5 @@ except Exception: pass
 '
 fi
 
-# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件，并在活动租约列表中同步显示备注
-dhcp_src="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
-if [ -f "$dhcp_src" ]; then
-    python3 -c '
-path = "feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
-try:
-    with open(path, "r", encoding="utf-8") as f: code = f.read()
 
-    # 1. 静态分配编辑弹窗中插入单行注释框控件 (使用独立变量 co, 避开重复与属性继承 bug)
-    if "var co = ss.option" not in code:
-        target1 = "so = ss.option(form.Value, \x27leasetime\x27,"
-        replacement1 = "var co = ss.option(form.Value, \x27comment\x27, _(\x27Comment\x27));\n\t\tco.rmempty = true;\n\n\t\t" + target1
-        code = code.replace(target1, replacement1)
-
-    # 2. 在 poll.add 内部并行异步加载 callDHCPLeases() 与 uci.load("dhcp") (不干扰 render 参数解构)
-    if "mac_comments" not in code:
-        target2 = "return callDHCPLeases().then(function(leaseinfo) {"
-        replacement2 = "return Promise.all([ callDHCPLeases(), L.resolveDefault(uci.load(\x27dhcp\x27)) ]).then(function(res) {\n\t\t\t\t\tconst leaseinfo = res[0] || {};\n\t\t\t\t\tconst mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });"
-        code = code.replace(target2, replacement2)
-
-        # 3. 替换 IPv4 活动租约的 host 拼接与 %s (优化格式避免嵌套冗长)
-        code = code.replace(
-            "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),",
-            "var cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) { var raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
-        )
-
-        # 4. 替换 IPv6 活动租约的 host 拼接与 %s
-        code = code.replace(
-            "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs",
-            "var cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) { var raw_h = lease.hostname || name; host = raw_h ? (cmt6 + \x27 (\x27 + raw_h + \x27)\x27) : cmt6; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
-        )
-
-    with open(path, "w", encoding="utf-8") as f: f.write(code)
-except Exception as e:
-    print("dhcp patch error:", e)
-'
-fi
-
-# 在“状态 - 概览” (Status Overview) 页面的 DHCP 活动租约列表中同步显示中文备注
-dhcp_status_src="feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/40_dhcp.js"
-if [ -f "$dhcp_status_src" ]; then
-    python3 -c '
-path = "feeds/luci/modules/luci-mod-status/htdocs/luci-static/resources/view/status/include/40_dhcp.js"
-try:
-    with open(path, "r", encoding="utf-8") as f: code = f.read()
-
-    if "uci.load(\x27dhcp\x27)" not in code:
-        code = code.replace("network.getHostHints()", "network.getHostHints(),\n\t\t\tL.resolveDefault(uci.load(\x27dhcp\x27))")
-
-    if "mac_comments" not in code:
-        target = "const machints = host_hints.getMACHints(false);"
-        helper = "const machints = host_hints.getMACHints(false);\n\t\tvar mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });\n\t\t"
-        code = code.replace(target, helper)
-
-        code = code.replace(
-            "if (hint && lease.hostname && lease.hostname != hint[1])",
-            "if (lease.macaddr && mac_comments[lease.macaddr.toLowerCase()]) { var cmt = mac_comments[lease.macaddr.toLowerCase()], raw_h = lease.hostname || (hint ? hint[1] : null); host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\t\t\telse if (hint && lease.hostname && lease.hostname != hint[1])"
-        )
-        code = code.replace("\x27%h\x27.format(host || \x27-\x27)", "\x27%s\x27.format(host || \x27-\x27)")
-
-    with open(path, "w", encoding="utf-8") as f: f.write(code)
-except Exception as e:
-    print("40_dhcp patch error:", e)
-'
-fi
 

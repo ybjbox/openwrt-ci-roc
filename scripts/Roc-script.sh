@@ -339,16 +339,16 @@ try:
         replacement2 = "return Promise.all([ callDHCPLeases(), L.resolveDefault(uci.load(\x27dhcp\x27)) ]).then(function(res) {\n\t\t\t\t\tconst leaseinfo = res[0] || {};\n\t\t\t\t\tconst mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });"
         code = code.replace(target2, replacement2)
 
-        # 3. 替换 IPv4 活动租约的 host 拼接与 %s (允许中文字符正常保留)
+        # 3. 替换 IPv4 活动租约的 host 拼接与 %s (优化格式避免嵌套冗长)
         code = code.replace(
             "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),",
-            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
+            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) { let raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
         )
 
         # 4. 替换 IPv6 活动租约的 host 拼接与 %s
         code = code.replace(
             "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs",
-            "let cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) host = host ? (cmt6 + \x27 (\x27 + host + \x27)\x27) : cmt6;\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
+            "let cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) { let raw_h = lease.hostname || name; host = raw_h ? (cmt6 + \x27 (\x27 + raw_h + \x27)\x27) : cmt6; }\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
         )
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)
@@ -375,7 +375,7 @@ try:
 
         code = code.replace(
             "\x27%h\x27.format(host || \x27-\x27)",
-            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\t\t\treturn \x27%s\x27.format(host || \x27-\x27)"
+            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\tif (cmt) { let raw_h = lease.hostname || name; host = raw_h ? (cmt + \x27 (\x27 + raw_h + \x27)\x27) : cmt; }\n\t\t\treturn \x27%s\x27.format(host || \x27-\x27)"
         )
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)

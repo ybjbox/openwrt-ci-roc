@@ -197,114 +197,16 @@ fi
 ./scripts/feeds install -a
 
 
-# ================= 写入首开自定义初始配置 (uci-defaults) =================
-mkdir -p package/base-files/files/etc/uci-defaults
-cat << EOF > package/base-files/files/etc/uci-defaults/99-custom-settings
-#!/bin/sh
-
-# 1. 默认 PPPoE 拨号设置 (仅在凭据不为空时配置，否则保留默认 DHCP 模式)
-if [ -n "${MY_PPPOE_USERNAME}" ] && [ -n "${MY_PPPOE_PASSWORD}" ]; then
-    uci set network.wan.proto='pppoe'
-    uci set network.wan.username='${MY_PPPOE_USERNAME}'
-    uci set network.wan.password='${MY_PPPOE_PASSWORD}'
+# 动态注入 GitHub Secrets 敏感变量至 athena-custom 插件包中
+athena_settings="package/openwrt-packages/athena-custom/files/etc/uci-defaults/99-athena-custom-settings"
+if [ -f "$athena_settings" ]; then
+    sed -i "s/\${MY_PPPOE_USERNAME}/${MY_PPPOE_USERNAME:-}/g" "$athena_settings"
+    sed -i "s/\${MY_PPPOE_PASSWORD}/${MY_PPPOE_PASSWORD:-}/g" "$athena_settings"
+    sed -i "s/\${MY_WIFI_SSID_2G}/${MY_WIFI_SSID_2G:-}/g" "$athena_settings"
+    sed -i "s/\${MY_WIFI_SSID_5G}/${MY_WIFI_SSID_5G:-}/g" "$athena_settings"
+    sed -i "s/\${MY_WIFI_PASSWORD}/${MY_WIFI_PASSWORD:-}/g" "$athena_settings"
+    sed -i "s/\${MY_ADMIN_PASSWORD}/${MY_ADMIN_PASSWORD:-}/g" "$athena_settings"
 fi
-
-# 2. 默认关闭 IPv6 支持
-uci set network.wan6.disabled='1'
-uci set network.lan.delegate='0'
-uci set network.lan.ipv6='0'
-uci set network.wan.ipv6='0'
-uci set dhcp.lan.dhcpv6='disabled'
-uci -q delete dhcp.lan.ra
-uci -q delete dhcp.lan.dhcpv6
-/etc/init.d/odhcpd disable
-
-# 3. 默认无线配置 (2.4G 与双5G 独立命名，双5G 名字相同实现自动无缝漫游)
-wireless_idx=0
-while uci get wireless.@wifi-iface[\$wireless_idx] >/dev/null 2>&1; do
-    # 获取该无线接口所绑定的物理网卡设备名 (如 radio0, radio1, radio2)
-    dev_name=\$(uci get wireless.@wifi-iface[\$wireless_idx].device)
-    
-    # 动态获取该物理网卡的频段 (2G 或 5G)
-    hw_band=\$(uci -q get wireless.\$dev_name.band)
-    hw_mode=\$(uci -q get wireless.\$dev_name.hwmode)
-    
-    if [ "\$hw_band" = "2g" ] || [ "\$hw_mode" = "11g" ]; then
-        # 判定为 2.4G 网卡，使用 2G SSID
-        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_2G}'
-    else
-        # 判定为 5G 网卡，使用 5G SSID，实现漫游切换
-        uci set wireless.@wifi-iface[\$wireless_idx].ssid='${MY_WIFI_SSID_5G}'
-    fi
-    
-    # 统一无线安全加密协议与 WiFi 密码
-    uci set wireless.@wifi-iface[\$wireless_idx].encryption='psk2'
-    uci set wireless.@wifi-iface[\$wireless_idx].key='${MY_WIFI_PASSWORD}'
-    wireless_idx=\$((\$wireless_idx + 1))
-done
-
-# 启用所有无线网卡，并根据频段自适应配置信道与频宽
-radio_idx=0
-while uci get wireless.radio\$radio_idx >/dev/null 2>&1; do
-    uci set wireless.radio\$radio_idx.disabled='0'
-    
-    hw_band=\$(uci -q get wireless.radio\$radio_idx.band)
-    hw_mode=\$(uci -q get wireless.radio\$radio_idx.hwmode)
-    
-    # 2.4G 频段：强锁为 11 信道，且限制在最大 20MHz 频宽以减少同频干扰
-    if [ "\$hw_band" = "2g" ] || [ "\$hw_mode" = "11g" ]; then
-        uci set wireless.radio\$radio_idx.channel='11'
-        uci set wireless.radio\$radio_idx.htmode='HT20'
-    else
-        # 5G 频段：保留自动信道
-        uci set wireless.radio\$radio_idx.channel='auto'
-    fi
-
-    radio_idx=\$((\$radio_idx + 1))
-done
-
-# 4. 默认主题设置为 Aurora
-uci set luci.main.mediaurlbase='/luci-static/aurora'
-
-# 4.5 适配 QuickFile 文件管理器的 Nginx 监听与 SSL 重定向设置（避免 HTTP 重定向到 SSL 导致 x509 证书校验失败）
-if [ -f /etc/config/nginx ]; then
-    uci set nginx.global.uci_enable='true'
-    uci del nginx._lan 2>/dev/null || true
-    uci del nginx._redirect2ssl 2>/dev/null || true
-    uci add nginx server >/dev/null 2>&1 || true
-    uci rename nginx.@server[0]='_lan' 2>/dev/null || true
-    uci set nginx._lan.server_name='_lan'
-    uci add_list nginx._lan.listen='80 default_server'
-    uci add_list nginx._lan.listen='[::]:80 default_server'
-    uci add_list nginx._lan.include='conf.d/*.locations'
-    uci set nginx._lan.access_log='off; # logd openwrt'
-    uci commit nginx
-fi
-
-# 4.6 解除 uWSGI 进程的虚拟内存上限 (limit-as = 1000)，防止 Go 语言二进制（如 Lucky）在堆内存分配时抛出 SIGSEGV 崩溃导致界面显示“未安装”
-sed -i 's/limit-as = 1000/; limit-as = 1000/g' /etc/uwsgi/vassals/*.ini 2>/dev/null || true
-/etc/init.d/uwsgi restart 2>/dev/null || true
-
-# 5. 提交并应用所有配置
-uci commit network
-uci commit dhcp
-uci commit wireless
-uci commit luci
-
-# 6. 修改默认后台密码（使用 passwd 管道替代不支持的 chpasswd）
-if [ -n "${MY_ADMIN_PASSWORD}" ]; then
-    echo -e "${MY_ADMIN_PASSWORD}\n${MY_ADMIN_PASSWORD}" | passwd root
-fi
-
-# 7. 修改默认软件源为南京大学源（仅适用于 25.12 新版 apk）
-if [ -f /etc/apk/repositories.d/distfeeds.list ]; then
-    sed -i -e '/istore/!{/nas/!s,https://downloads.immortalwrt.org,https://mirror.nju.edu.cn/immortalwrt,g}' \
-           -e 's,https://mirrors.vsean.net/openwrt,https://mirror.nju.edu.cn/immortalwrt,g' \
-           /etc/apk/repositories.d/distfeeds.list
-fi
-exit 0
-EOF
-chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 
 # 8. 升级保留配置时剔除 OpenClash 智能权重大数据(smart_weight_data.csv 及其备份)
 #    否则 sysupgrade 打包这几百MB文件会卡死, 导致 LuCI "保留配置升级" 无响应

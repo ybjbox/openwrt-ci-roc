@@ -311,13 +311,16 @@ if [ -f package/base-files/files/sbin/sysupgrade ]; then
     sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
 fi
 
-# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件
-rm -rf package/base-files/files/www/luci-static/resources/view/network/dhcp.js
+# 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件，并在活动租约列表中同步显示备注
 dhcp_src="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
-dhcp_pkg="package/feeds/luci/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
-for file in "$dhcp_src" "$dhcp_pkg"; do
-    if [ -f "$file" ]; then
-        sed -i "/so = ss\.option(form\.Value, 'ip'/a\\
-\t\tso = ss.option(form.Value, 'comment', _('Comment'));\n\t\tso.rmempty = true;" "$file"
-    fi
-done
+if [ -f "$dhcp_src" ]; then
+    # 1. 清理旧段落，使用独立变量 co 精确插入单行注释框（解决重复框与继承bug）
+    sed -i '/comment.*Comment/d' "$dhcp_src" 2>/dev/null || true
+    sed -i "/so = ss\.option(form\.Value, 'leasetime'/i \\
+\t\tvar co = ss.option(form.Value, 'comment', _('Comment'));\n\t\tco.rmempty = true;" "$dhcp_src"
+
+    # 2. 在活动 DHCP 租约表格中同步显示中文备注 (格式: 飞牛 (RyanCloud))
+    sed -i '/cbi_update_table.*lease_status_table/i \\
+\t\tvar mac_cmts = {}; uci.sections("dhcp", "host").forEach(function(s) { L.toArray(s.mac).forEach(function(e) { if (s.comment) mac_cmts[e.toUpperCase()] = s.comment; }); });' "$dhcp_src"
+    sed -i 's/const columns = \[/if (lease.macaddr \&\& mac_cmts[lease.macaddr.toUpperCase()]) host = mac_cmts[lease.macaddr.toUpperCase()] + (host ? " (" + host + ")" : "");\n\t\t\t\t\tconst columns = [/g' "$dhcp_src"
+fi

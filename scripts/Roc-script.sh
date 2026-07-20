@@ -308,19 +308,40 @@ chmod +x package/base-files/files/etc/uci-defaults/99-custom-settings
 #    注: keep.d 目录文件仅作为备份白名单(cat 并作为 find 参数)，不可作为脚本执行。
 #    此处直接在编译期通过 sed 修改 sysupgrade 脚本，在打包前动态过滤 conffiles 列表。
 if [ -f package/base-files/files/sbin/sysupgrade ]; then
-    sed -i '/s,\^\//i \	sed -i '\''/smart_weight_data/d'\'' "$CONFFILES"' package/base-files/files/sbin/sysupgrade
+    python3 -c '
+path = "package/base-files/files/sbin/sysupgrade"
+try:
+    with open(path, "r", encoding="utf-8") as f: content = f.read()
+    if "smart_weight_data" not in content:
+        content = content.replace("s,^/", "sed -i \"/smart_weight_data/d\" \"$CONFFILES\"\ns,^/")
+        with open(path, "w", encoding="utf-8") as f: f.write(content)
+except Exception: pass
+'
 fi
 
 # 在 LuCI DHCP 静态地址分配界面添加中文备注 (Comment) 控件，并在活动租约列表中同步显示备注
 dhcp_src="feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
 if [ -f "$dhcp_src" ]; then
-    # 1. 清理旧段落，使用独立变量 co 精确插入单行注释框（解决重复框与继承bug）
-    sed -i '/comment.*Comment/d' "$dhcp_src" 2>/dev/null || true
-    sed -i "/so = ss\.option(form\.Value, 'leasetime'/i \\
-\t\tvar co = ss.option(form.Value, 'comment', _('Comment'));\n\t\tco.rmempty = true;" "$dhcp_src"
+    python3 -c '
+path = "feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/network/dhcp.js"
+try:
+    with open(path, "r", encoding="utf-8") as f: code = f.read()
 
-    # 2. 在活动 DHCP 租约表格中同步显示中文备注 (格式: 飞牛 (RyanCloud))
-    sed -i '/cbi_update_table.*lease_status_table/i \\
-\t\tvar mac_cmts = {}; uci.sections("dhcp", "host").forEach(function(s) { L.toArray(s.mac).forEach(function(e) { if (s.comment) mac_cmts[e.toUpperCase()] = s.comment; }); });' "$dhcp_src"
-    sed -i 's/const columns = \[/if (lease.macaddr \&\& mac_cmts[lease.macaddr.toUpperCase()]) host = mac_cmts[lease.macaddr.toUpperCase()] + (host ? " (" + host + ")" : "");\n\t\t\t\t\tconst columns = [/g' "$dhcp_src"
+    # 1. 精确插入单行注释框
+    if "var co = ss.option" not in code:
+        target1 = "so = ss.option(form.Value, \x27leasetime\x27,"
+        replacement1 = "var co = ss.option(form.Value, \x27comment\x27, _(\x27Comment\x27));\n\t\tco.rmempty = true;\n\n\t\t" + target1
+        code = code.replace(target1, replacement1)
+
+    # 2. 插入活动租约列表中文备注 (格式: 飞牛 (RyanCloud))
+    if "mac_cmts" not in code:
+        target2 = "cbi_update_table(\x27#lease_status_table\x27,"
+        helper = "var mac_cmts = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(e) { if (s.comment) mac_cmts[e.toUpperCase()] = s.comment; }); });\n\t\t\t\t\t"
+        code = code.replace(target2, helper + target2)
+        code = code.replace("const columns = [", "if (lease.macaddr && mac_cmts[lease.macaddr.toUpperCase()]) host = mac_cmts[lease.macaddr.toUpperCase()] + (host ? \" (\" + host + \")\" : \"\");\n\t\t\t\t\tconst columns = [")
+
+    with open(path, "w", encoding="utf-8") as f: f.write(code)
+except Exception as e:
+    print("dhcp patch error:", e)
+'
 fi

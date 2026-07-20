@@ -327,23 +327,29 @@ path = "feeds/luci/modules/luci-mod-network/htdocs/luci-static/resources/view/ne
 try:
     with open(path, "r", encoding="utf-8") as f: code = f.read()
 
-    # 1. 确保在 load() 方法中加载 uci.load("dhcp") 数据
-    if "uci.load(\x27dhcp\x27)" not in code:
-        code = code.replace("listServices(),", "listServices(),\n\t\t\tuci.load(\x27dhcp\x27),")
-
-    # 2. 精确插入单行注释框控件
+    # 1. 静态分配编辑弹窗中插入单行注释框控件 (使用独立变量 co, 避开重复与属性继承 bug)
     if "var co = ss.option" not in code:
         target1 = "so = ss.option(form.Value, \x27leasetime\x27,"
         replacement1 = "var co = ss.option(form.Value, \x27comment\x27, _(\x27Comment\x27));\n\t\tco.rmempty = true;\n\n\t\t" + target1
         code = code.replace(target1, replacement1)
 
-    # 3. 插入活动租约列表中文备注 (格式: 飞牛 (RyanCloud)) 并将限制中文字符的 %h 格式化转换为 %s
-    if "mac_cmts" not in code:
-        target2 = "cbi_update_table(\x27#lease_status_table\x27,"
-        helper = "var mac_cmts = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(e) { if (s.comment) mac_cmts[e.toLowerCase()] = s.comment; }); });\n\t\t\t\t\t"
-        code = code.replace(target2, helper + target2)
-        code = code.replace("const columns = [", "let cmt = lease.macaddr ? mac_cmts[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\t\t\t\t\tconst columns = [")
-        code = code.replace("\x27%h\x27.format(host || \x27-\x27)", "\x27%s\x27.format(host || \x27-\x27)")
+    # 2. 在 poll.add 内部并行异步加载 callDHCPLeases() 与 uci.load("dhcp") (不干扰 render 参数解构)
+    if "mac_comments" not in code:
+        target2 = "return callDHCPLeases().then(function(leaseinfo) {"
+        replacement2 = "return Promise.all([ callDHCPLeases(), L.resolveDefault(uci.load(\x27dhcp\x27)) ]).then(function(res) {\n\t\t\t\t\tconst leaseinfo = res[0] || {};\n\t\t\t\t\tconst mac_comments = {}; uci.sections(\x27dhcp\x27, \x27host\x27).forEach(function(s) { L.toArray(s.mac).forEach(function(m) { if (s.comment) mac_comments[m.toLowerCase()] = s.comment; }); });"
+        code = code.replace(target2, replacement2)
+
+        # 3. 替换 IPv4 活动租约的 host 拼接与 %s (允许中文字符正常保留)
+        code = code.replace(
+            "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),",
+            "let cmt = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt) host = host ? (cmt + \x27 (\x27 + host + \x27)\x27) : cmt;\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),"
+        )
+
+        # 4. 替换 IPv6 活动租约的 host 拼接与 %s
+        code = code.replace(
+            "const columns = [\n\t\t\t\t\t\t\t\t\x27%h\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs",
+            "let cmt6 = lease.macaddr ? mac_comments[lease.macaddr.toLowerCase()] : null;\n\t\t\t\t\t\t\tif (cmt6) host = host ? (cmt6 + \x27 (\x27 + host + \x27)\x27) : cmt6;\n\n\t\t\t\t\t\t\tconst columns = [\n\t\t\t\t\t\t\t\t\x27%s\x27.format(host || \x27-\x27),\n\t\t\t\t\t\t\t\tlease.ip6addrs"
+        )
 
     with open(path, "w", encoding="utf-8") as f: f.write(code)
 except Exception as e:

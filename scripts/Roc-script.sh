@@ -208,21 +208,7 @@ if [ -f "$athena_settings" ]; then
     sed -i "s/\${MY_ADMIN_PASSWORD}/${MY_ADMIN_PASSWORD:-}/g" "$athena_settings"
 fi
 
-# 8. 升级保留配置时剔除 OpenClash 智能权重大数据(smart_weight_data.csv 及其备份)
-#    否则 sysupgrade 打包这几百MB文件会卡死, 导致 LuCI "保留配置升级" 无响应
-#    注: keep.d 目录文件仅作为备份白名单(cat 并作为 find 参数)，不可作为脚本执行。
-#    此处直接在编译期通过 sed 修改 sysupgrade 脚本，在打包前动态过滤 conffiles 列表。
-if [ -f package/base-files/files/sbin/sysupgrade ]; then
-    python3 -c '
-path = "package/base-files/files/sbin/sysupgrade"
-try:
-    with open(path, "r", encoding="utf-8") as f: content = f.read()
-    if "smart_weight_data" not in content:
-        content = content.replace("s,^/", "sed -i \"/smart_weight_data/d\" \"$CONFFILES\"\ns,^/")
-        with open(path, "w", encoding="utf-8") as f: f.write(content)
-except Exception: pass
-'
-fi
+
 
 
 

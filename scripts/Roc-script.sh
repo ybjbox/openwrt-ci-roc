@@ -200,12 +200,14 @@ fi
 # 动态注入 GitHub Secrets 敏感变量至 athena-custom 插件包中
 athena_settings="package/openwrt-packages/athena-custom/files/etc/uci-defaults/99-athena-custom-settings"
 if [ -f "$athena_settings" ]; then
+    echo "Injecting secrets into $athena_settings..."
     sed -i "s/__MY_PPPOE_USERNAME__/${MY_PPPOE_USERNAME:-}/g" "$athena_settings"
     sed -i "s/__MY_PPPOE_PASSWORD__/${MY_PPPOE_PASSWORD:-}/g" "$athena_settings"
     sed -i "s/__MY_WIFI_SSID_2G__/${MY_WIFI_SSID_2G:-}/g" "$athena_settings"
     sed -i "s/__MY_WIFI_SSID_5G__/${MY_WIFI_SSID_5G:-}/g" "$athena_settings"
     sed -i "s/__MY_WIFI_PASSWORD__/${MY_WIFI_PASSWORD:-}/g" "$athena_settings"
     sed -i "s/__MY_ADMIN_PASSWORD__/${MY_ADMIN_PASSWORD:-}/g" "$athena_settings"
+    echo "Secrets injection completed for athena-custom."
 fi
 
 

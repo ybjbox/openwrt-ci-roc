@@ -12,7 +12,7 @@ on:
         description: 运行 IPQ807X-LibWrt
         required: false
         type: boolean
-        default: true
+        default: false
       jdcloud_immortalwrt:
         description: 运行 JDCloud-ImmortalWrt
         required: false
@@ -22,12 +22,12 @@ on:
         description: 运行 JDCloud-NoWiFi-ImmortalWrt
         required: false
         type: boolean
-        default: true
+        default: false
       x86_64_immortalwrt:
         description: 运行 x86-64-ImmortalWrt
         required: false
         type: boolean
-        default: true
+        default: false
       build_packages:
         description: 运行 Build-Packages
         required: false

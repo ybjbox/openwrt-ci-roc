@@ -182,7 +182,7 @@ git_clone https://github.com/Openwrt-Passwall/openwrt-passwall2 package/luci-app
 git_clone https://github.com/vernesong/OpenClash package/luci-app-openclash
 
 # 清理 PassWall 的 chnlist 规则文件
-echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
+# echo "baidu.com"  > package/luci-app-passwall/luci-app-passwall/root/usr/share/passwall/rules/chnlist
 
 # 克隆 Bandix 流量监控插件及其后端依赖
 git_clone https://github.com/timsaya/luci-app-bandix package/luci-app-bandix

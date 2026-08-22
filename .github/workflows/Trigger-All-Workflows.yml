@@ -40,6 +40,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: trigger-all-workflows-${{ github.repository }}
+  cancel-in-progress: false
+
 jobs:
 
     IPQ60XX-LibWrt:

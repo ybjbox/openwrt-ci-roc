@@ -40,7 +40,7 @@ on:
           - luci-theme-argon
           - luci-theme-aurora
       enable_cache:
-        description: 可选：启用 SDK、下载文件和编译缓存（默认关闭）。
+        description: 可选：启用 SDK 和编译缓存（默认关闭）。
         required: false
         default: false
         type: boolean
@@ -234,17 +234,15 @@ jobs:
         path: ${{ steps.sdk.outputs.archive }}
         key: openwrt-sdk-${{ runner.os }}-${{ steps.sdk.outputs.sha256 }}
 
-    - name: Restore SDK Downloads And Ccache(恢复SDK下载和编译缓存)
+    - name: Restore SDK Ccache(恢复SDK编译缓存)
       if: ${{ inputs.enable_cache }}
-      id: build-cache
+      id: ccache
       uses: actions/cache/restore@v4
       with:
-        path: |
-          ${{ runner.temp }}/openwrt-sdk/dl
-          ${{ runner.temp }}/openwrt-sdk/.ccache
-        key: openwrt-build-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.sdk.outputs.sha256 }}-${{ inputs.package }}-${{ hashFiles('configs/*.config', 'scripts/SDK-script.sh') }}
+        path: ${{ runner.temp }}/openwrt-sdk/.ccache
+        key: openwrt-ccache-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.sdk.outputs.sha256 }}-${{ inputs.package }}-${{ hashFiles('configs/*.config', 'scripts/SDK-script.sh') }}
         restore-keys: |
-          openwrt-build-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.sdk.outputs.sha256 }}-
+          openwrt-ccache-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.sdk.outputs.sha256 }}-
 
     - name: Build Packages With OpenWrt SDK(使用OpenWrt SDK编译软件包)
       id: build
@@ -273,14 +271,12 @@ jobs:
         path: ${{ steps.build.outputs.archive }}
         key: openwrt-sdk-${{ runner.os }}-${{ steps.build.outputs.sha256 }}
 
-    - name: Save SDK Downloads And Ccache(保存SDK下载和编译缓存)
-      if: ${{ inputs.enable_cache && !cancelled() && steps.build.outputs.sha256 != '' && (steps.build-cache.outputs.cache-hit != 'true' || steps.build.outputs.sha256 != steps.sdk.outputs.sha256) }}
+    - name: Save SDK Ccache(保存SDK编译缓存)
+      if: ${{ inputs.enable_cache && !cancelled() && steps.build.outputs.sha256 != '' && (steps.ccache.outputs.cache-hit != 'true' || steps.build.outputs.sha256 != steps.sdk.outputs.sha256) }}
       uses: actions/cache/save@v4
       with:
-        path: |
-          ${{ runner.temp }}/openwrt-sdk/dl
-          ${{ runner.temp }}/openwrt-sdk/.ccache
-        key: openwrt-build-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.build.outputs.sha256 }}-${{ inputs.package }}-${{ hashFiles('configs/*.config', 'scripts/SDK-script.sh') }}
+        path: ${{ runner.temp }}/openwrt-sdk/.ccache
+        key: openwrt-ccache-${{ runner.os }}-${{ matrix.sdk_version }}-${{ matrix.openwrt_target }}-${{ matrix.openwrt_subtarget }}-${{ steps.build.outputs.sha256 }}-${{ inputs.package }}-${{ hashFiles('configs/*.config', 'scripts/SDK-script.sh') }}
 
     - name: Upload Packages Artifact(上传软件包产物)
       if: ${{ always() && !cancelled() }}

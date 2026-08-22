@@ -72,7 +72,6 @@ jobs:
       artifact_name: ${{ steps.variables.outputs.artifact_name }}
       cache_prefix: ${{ steps.variables.outputs.cache_prefix }}
       ccache_key: ${{ steps.variables.outputs.ccache_key }}
-      dl_key: ${{ steps.variables.outputs.dl_key }}
       staging_key: ${{ steps.variables.outputs.staging_key }}
       version_info: ${{ steps.source.outputs.version_info }}
       version_kernel: ${{ steps.source.outputs.version_kernel }}
@@ -189,15 +188,11 @@ jobs:
         CACHE_PREFIX="openwrt-${RUNNER_OS}-${SOURCE_REPO}-${REPO_BRANCH}-${DEVICE_TARGET}-${DEVICE_SUBTARGET}"
         CCACHE_KEY="${CACHE_PREFIX}-ccache-${CUSTOMIZATION_HASH}-${HASH}"
         CCACHE_RESTORE_PREFIX="${CACHE_PREFIX}-ccache-${CUSTOMIZATION_HASH}-"
-        DL_KEY="${CACHE_PREFIX}-dl-${CUSTOMIZATION_HASH}-${HASH}"
-        DL_RESTORE_PREFIX="${CACHE_PREFIX}-dl-${CUSTOMIZATION_HASH}-"
         STAGING_KEY="${CACHE_PREFIX}-staging-${CUSTOMIZATION_HASH}-${HASH}"
         ARTIFACT_NAME="firmware-${ARTIFACT_PREFIX}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
         {
           echo "CCACHE_KEY=$CCACHE_KEY"
           echo "CCACHE_RESTORE_PREFIX=$CCACHE_RESTORE_PREFIX"
-          echo "DL_KEY=$DL_KEY"
-          echo "DL_RESTORE_PREFIX=$DL_RESTORE_PREFIX"
           echo "STAGING_KEY=$STAGING_KEY"
           echo "ARTIFACT_NAME=$ARTIFACT_NAME"
         } >> "$GITHUB_ENV"
@@ -205,7 +200,6 @@ jobs:
           echo "artifact_name=$ARTIFACT_NAME"
           echo "cache_prefix=$CACHE_PREFIX"
           echo "ccache_key=$CCACHE_KEY"
-          echo "dl_key=$DL_KEY"
           echo "staging_key=$STAGING_KEY"
         } >> "$GITHUB_OUTPUT"
 
@@ -222,14 +216,6 @@ jobs:
       with:
         key: ${{ env.STAGING_KEY }}
         path: ${{ env.OPENWRT_PATH }}/staging_dir
-
-    - name: Cache Downloads(缓存下载文件)
-      uses: actions/cache@v4
-      with:
-        key: ${{ env.DL_KEY }}
-        restore-keys: |
-          ${{ env.DL_RESTORE_PREFIX }}
-        path: ${{ env.OPENWRT_PATH }}/dl
 
     - name: Update Feeds(更新feeds)
       run: |
@@ -388,7 +374,6 @@ jobs:
       env:
         CACHE_PREFIX: ${{ needs.Build.outputs.cache_prefix }}
         CCACHE_KEY: ${{ needs.Build.outputs.ccache_key }}
-        DL_KEY: ${{ needs.Build.outputs.dl_key }}
         GH_TOKEN: ${{ github.token }}
         STAGING_KEY: ${{ needs.Build.outputs.staging_key }}
       run: |
@@ -396,7 +381,7 @@ jobs:
           while IFS=$'\t' read -r cache_id cache_key; do
             [ -n "$cache_id" ] || continue
             case "$cache_key" in
-              "$CCACHE_KEY" | "$DL_KEY" | "$STAGING_KEY") continue ;;
+              "$CCACHE_KEY" | "$STAGING_KEY") continue ;;
             esac
             gh cache delete --repo "$GITHUB_REPOSITORY" "$cache_id" || echo "::warning::Unable to delete cache $cache_key ($cache_id)."
           done

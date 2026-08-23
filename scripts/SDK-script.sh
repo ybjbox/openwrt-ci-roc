@@ -39,7 +39,6 @@ unset CONFIG_FILES
 RUNNER_TEMP="${RUNNER_TEMP:-/tmp}"
 SDK_ROOT="${SDK_ROOT:-$RUNNER_TEMP/openwrt-sdk}"
 SDK_CACHE_DIR="${SDK_CACHE_DIR:-$RUNNER_TEMP/openwrt-sdk-cache}"
-SDK_CCACHE_DIR="${SDK_CCACHE_DIR:-$SDK_ROOT/.ccache}"
 OUTPUT_DIR="${OUTPUT_DIR:-${GITHUB_WORKSPACE:-$PWD}/artifacts/packages}"
 PACKAGE_ARCH_NAME="${PACKAGE_ARCH_NAME:-$OPENWRT_TARGET-$OPENWRT_SUBTARGET}"
 PACKAGE_SELECTED_ARCH="${PACKAGE_SELECTED_ARCH:-$PACKAGE_ARCH_NAME}"
@@ -404,8 +403,6 @@ resolve_sdk_sha256() {
 
 prepare_sdk_metadata() {
   local attempt
-  local archive_name
-  local metadata
   local retry_count=1
 
   if is_true "$SDK_METADATA_REFRESH" && [ -z "$SDK_URL" ]; then
@@ -414,8 +411,7 @@ prepare_sdk_metadata() {
   fi
 
   for ((attempt = 1; attempt <= retry_count; attempt++)); do
-    if metadata="$(prepare_sdk_metadata_once)"; then
-      IFS=$'\t' read -r RESOLVED_SDK_URL EXPECTED_SDK_SHA256 SDK_ARCHIVE <<< "$metadata"
+    if prepare_sdk_metadata_once; then
       return 0
     fi
 
@@ -425,7 +421,7 @@ prepare_sdk_metadata() {
     fi
   done
 
-  die "Unable to resolve and verify SDK metadata after $attempt attempt(s)"
+  die "Unable to resolve and verify SDK metadata after $retry_count attempt(s)"
 }
 
 prepare_sdk_metadata_once() {
@@ -437,13 +433,22 @@ prepare_sdk_metadata_once() {
     die "SDK_SHA256 is required when SDK_URL is explicitly supplied"
   fi
 
-  resolved_url="$(resolve_sdk_url)"
-  expected_sha256="$(resolve_sdk_sha256 "$resolved_url")"
-  archive_name="$(sdk_archive_name "$resolved_url")"
-  printf '%s\t%s\t%s\n' \
-    "$resolved_url" \
-    "$expected_sha256" \
-    "$SDK_CACHE_DIR/${expected_sha256}-${archive_name}"
+  if ! resolved_url="$(resolve_sdk_url)"; then
+    return 1
+  fi
+  if ! expected_sha256="$(resolve_sdk_sha256 "$resolved_url")"; then
+    return 1
+  fi
+  if ! expected_sha256="$(normalize_sha256 "$expected_sha256")"; then
+    return 1
+  fi
+  if ! archive_name="$(sdk_archive_name "$resolved_url")"; then
+    return 1
+  fi
+
+  RESOLVED_SDK_URL="$resolved_url"
+  EXPECTED_SDK_SHA256="$expected_sha256"
+  SDK_ARCHIVE="$SDK_CACHE_DIR/${expected_sha256}-${archive_name}"
 }
 
 emit_sdk_metadata() {
@@ -572,30 +577,6 @@ extract_sdk() {
       tar -xf "$SDK_ARCHIVE" --strip-components=1 -C "$SDK_ROOT"
       ;;
   esac
-}
-
-extract_sdk_preserving_build_cache() {
-  local cache_name
-  local preserved_root="$RUNNER_TEMP/openwrt-sdk-preserved-cache"
-
-  rm -rf "$preserved_root"
-  mkdir -p "$preserved_root"
-  for cache_name in dl .ccache; do
-    if [ -d "$SDK_ROOT/$cache_name" ]; then
-      mv "$SDK_ROOT/$cache_name" "$preserved_root/$cache_name"
-    fi
-  done
-
-  rm -rf "$SDK_ROOT"
-  mkdir -p "$SDK_ROOT"
-  extract_sdk "$RESOLVED_SDK_URL"
-
-  for cache_name in dl .ccache; do
-    [ -d "$preserved_root/$cache_name" ] || continue
-    mkdir -p "$SDK_ROOT/$cache_name"
-    cp -a "$preserved_root/$cache_name/." "$SDK_ROOT/$cache_name/"
-  done
-  rm -rf "$preserved_root"
 }
 
 record_source_revision() {
@@ -838,12 +819,6 @@ load_config_files() {
     cat "$source_file" >> "$SDK_ROOT/.config"
     printf '\n' >> "$SDK_ROOT/.config"
   done
-
-  sed -i \
-    -e '/^CONFIG_CCACHE=/d' \
-    -e '/^# CONFIG_CCACHE is not set$/d' \
-    "$SDK_ROOT/.config"
-  printf 'CONFIG_CCACHE=y\n' >> "$SDK_ROOT/.config"
 }
 
 config_package_enabled() {
@@ -1286,12 +1261,12 @@ compile_packages() {
     parallel_exit_code=0
     final_exit_code=0
 
-    if make -j"$job_count" CCACHE_DIR="$SDK_CCACHE_DIR" "$compile_target"; then
+    if make -j"$job_count" "$compile_target"; then
       :
     else
       parallel_exit_code=$?
       log "Parallel compile failed for $compile_target; retry with a single job and verbose output"
-      if make -j1 CCACHE_DIR="$SDK_CCACHE_DIR" "$compile_target" V=s; then
+      if make -j1 "$compile_target" V=s; then
         :
       else
         final_exit_code=$?
@@ -1567,7 +1542,8 @@ download_sdk_with_metadata_retry
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
   emit_sdk_metadata
 fi
-extract_sdk_preserving_build_cache
+rm -rf "$SDK_ROOT"
+extract_sdk "$RESOLVED_SDK_URL"
 [ -x "$SDK_ROOT/scripts/feeds" ] || die "Invalid SDK archive: scripts/feeds was not found"
 [ -f "$SDK_ROOT/Makefile" ] || die "Invalid SDK archive: Makefile was not found"
 : > "$SOURCE_REVISIONS_FILE"
@@ -1590,8 +1566,7 @@ prune_luci_translations
 
 log "Load package config"
 load_config_files
-mkdir -p "$SDK_CCACHE_DIR"
-make CCACHE_DIR="$SDK_CCACHE_DIR" defconfig
+make defconfig
 generate_compile_targets
 generate_artifact_filters
 

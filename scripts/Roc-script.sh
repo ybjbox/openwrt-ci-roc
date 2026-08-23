@@ -343,7 +343,6 @@ if package_enabled luci-app-athena-led luci-i18n-athena-led-zh-cn; then
   clone_repository https://github.com/NONGFAH/luci-app-athena-led main package/luci-app-athena-led
   chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 fi
-
 # 克隆个人自定义插件包仓库 (包含 DHCP 中文备注插件 luci-app-dhcp-comment)
 git_clone https://github.com/ybjbox/openwrt-packages package/openwrt-packages
 
@@ -408,8 +407,6 @@ fi
 # echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
 # echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
 # echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
-
-install -Dm0644 "$THIRD_PARTY_SOURCES_FILE" package/base-files/files/etc/roc/third-party-sources.txt
 
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a

@@ -54,7 +54,7 @@ defaults:
 
 env:
   GENERAL_CONFIG_FILE: configs/General.config
-  DIY_SCRIPT: scripts/Roc-script.sh
+  DIY_SCRIPT: scripts/Roc-script-diagnose.sh
   OPENWRT_PATH: /mnt/openwrt
   TZ: Asia/Shanghai
 
@@ -171,7 +171,7 @@ jobs:
       id: variables
       env:
         ARTIFACT_PREFIX: ${{ inputs.artifact_prefix }}
-        CUSTOMIZATION_HASH: ${{ hashFiles('scripts/Roc-script.sh', 'configs/General.config', inputs.config_file) }}
+        CUSTOMIZATION_HASH: ${{ hashFiles('scripts/Roc-script-diagnose.sh', 'configs/General.config', inputs.config_file) }}
         REPO_URL: ${{ inputs.repo_url }}
         REPO_BRANCH: ${{ inputs.repo_branch }}
         CONFIG_FILE: ${{ inputs.config_file }}
@@ -267,14 +267,18 @@ jobs:
           sed -i '/CONFIG_PACKAGE_sqm-scripts-nss=y/d' .config
         fi
         # ===== 诊断：扫描含非法双引号的包元数据（无论 defconfig 成败都会打印）=====
-        echo "=== [诊断1] 扫描所有包 Makefile 中 TITLE/SUBMENU/MENU/LUCI_TITLE 含双引号的包 ==="
-        grep -rEn '^[[:space:]]*(TITLE|SUBMENU|MENU|LUCI_TITLE)[[:space:]]*:?=.*".*' package feeds 2>/dev/null | sort -u || echo "(未发现含双引号的字段)"
+        echo "=== [诊断1] 扫描包元数据含双引号的行（TITLE/SUBMENU/MENU/LUCI_TITLE/CATEGORY 及 tristate）==="
+        grep -rEn '^[[:space:]]*((TITLE|SUBMENU|MENU|LUCI_TITLE|CATEGORY)[[:space:]]*:?=|tristate ).*".*' package feeds 2>/dev/null | sort -u || echo "(未发现含双引号的字段)"
         echo "=== [诊断1] 扫描结束 ==="
         make defconfig || {
           echo "::error::[诊断] make defconfig 失败，输出 kconfig 报错行以便定位问题包"
-          echo "=== [诊断2] tmp/.config-package.in 中的 kconfig 报错行 ==="
+          echo "=== [诊断2] 报错行上下文（定位具体包与坏掉的 tristate 行）==="
           if [ -f tmp/.config-package.in ]; then
-            grep -nE 'unknown statement|syntax error|invalid statement' tmp/.config-package.in | head -80 || echo "(未找到 kconfig 报错行)"
+            grep -nE 'unknown statement|syntax error|invalid statement' tmp/.config-package.in | head -40 > /tmp/diag_errs.txt || true
+            while IFS=: read -r n _; do
+              echo "---- 报错行 $n 上下文（前7行~后1行）----"
+              sed -n "$((n-7)),$((n+1))p" tmp/.config-package.in
+            done < /tmp/diag_errs.txt
           else
             echo "(未找到 tmp/.config-package.in)"
           fi

@@ -268,7 +268,7 @@ jobs:
         fi
         # ===== 诊断：扫描含非法双引号的包元数据（无论 defconfig 成败都会打印）=====
         echo "=== [诊断1] 扫描所有包 Makefile 中 TITLE/SUBMENU/MENU/LUCI_TITLE 含双引号的包 ==="
-        grep -rEn '^[[:space:]]*(TITLE|SUBMENU|MENU|LUCI_TITLE):=.*".*' package feeds 2>/dev/null | sort -u || echo "(未发现含双引号的字段)"
+        grep -rEn '^[[:space:]]*(TITLE|SUBMENU|MENU|LUCI_TITLE)[[:space:]]*:?=.*".*' package feeds 2>/dev/null | sort -u || echo "(未发现含双引号的字段)"
         echo "=== [诊断1] 扫描结束 ==="
         make defconfig || {
           echo "::error::[诊断] make defconfig 失败，输出 kconfig 报错行以便定位问题包"

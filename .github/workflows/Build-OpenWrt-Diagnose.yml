@@ -78,7 +78,7 @@ jobs:
     steps:
     - name: Check Server Performance(检查服务器性能)
       run: |
-        echo "警告⚠"
+        echo "警告?"
         echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
         echo -e "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n"
         echo "--------------------------CPU信息--------------------------"
@@ -272,24 +272,24 @@ jobs:
         echo "=== [诊断1] 扫描结束 ==="
         make defconfig || {
           echo "::error::[诊断] make defconfig 失败，输出 kconfig 报错行以便定位问题包"
-          echo "=== [诊断2] 报错行上下文（定位具体包与坏掉的 tristate 行）==="
+          echo "=== [诊断2] 报错行所属 config PACKAGE_ 块（直接暴露坏掉的 tristate/menu 行）==="
           if [ -f tmp/.config-package.in ]; then
             grep -nE 'unknown statement|syntax error|invalid statement' tmp/.config-package.in | head -40 > /tmp/diag_errs.txt || true
             while IFS=: read -r n _; do
-              echo "---- 报错行 $n 上下文（前7行~后1行）----"
-              sed -n "$((n-7)),$((n+1))p" tmp/.config-package.in
+              b=$(awk -v N="$n" 'NR<=N && /^[[:space:]]*config PACKAGE_/{b=NR} END{print (b?b:1)}' tmp/.config-package.in)
+              echo "---- 报错行 $n 所属包块（行 $b ~ $n）----"
+              sed -n "${b},${n}p" tmp/.config-package.in
             done < /tmp/diag_errs.txt
           else
             echo "(未找到 tmp/.config-package.in)"
           fi
-          echo "=== [诊断3] 直接扫描生成的 tmp/.config-package.in 中含未闭合双引号的 tristate/menu/bool/string/comment 行（精确定位坏包与出错行）==="
+          echo "=== [诊断2] 扫描结束 ==="
+          echo "=== [诊断3] 格式校验：生成的 tmp/.config-package.in 中引号不成对的 tristate/menu/bool/string/comment/source/default 行 ==="
           if [ -f tmp/.config-package.in ]; then
             awk '
               /^[[:space:]]*config PACKAGE_/ { pkg=$0 }
-              {
-                line=$0
-                n=gsub(/"/,"\"",line)
-                if (n>0 && n%2==1 && $0 ~ /^[[:space:]]*(tristate|menu|bool|string|comment)[[:space:]]/) {
+              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]/ && /"/ {
+                if ($0 !~ /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]+"[^"]*"[[:space:]]*($|#.*)/) {
                   print "  包上下文: " pkg
                   print "  坏行 " FNR ": " $0
                 }
@@ -299,13 +299,11 @@ jobs:
             echo "(未找到 tmp/.config-package.in)"
           fi
           echo "=== [诊断3] 扫描结束 ==="
-          echo "=== [诊断4] 扫描源码 package/feeds 下 Config.in/Kconfig/Makefile 的未闭合双引号（定位原始文件）==="
+          echo "=== [诊断4] 格式校验：源码 package/feeds 下 Config.in/Kconfig/Makefile 的引号不成对行（定位原始文件）==="
           find package feeds \( -name 'Config.in' -o -name 'Config.in.*' -o -name 'Kconfig' -o -name '*.mk' -o -name 'Makefile' \) -type f 2>/dev/null | while read -r f; do
             awk -v F="$f" '
-              {
-                line=$0
-                n=gsub(/"/,"\"",line)
-                if (n>0 && n%2==1 && $0 ~ /^[[:space:]]*(tristate|menu|bool|string|comment|TITLE|SUBMENU|LUCI_TITLE|CATEGORY)\b/) {
+              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]/ && /"/ {
+                if ($0 !~ /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]+"[^"]*"[[:space:]]*($|#.*)/) {
                   print F ":" FNR ": " $0
                 }
               }

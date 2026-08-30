@@ -282,7 +282,37 @@ jobs:
           else
             echo "(未找到 tmp/.config-package.in)"
           fi
-          echo "=== [诊断] 请把 [诊断1] 与 [诊断2] 两段输出贴给 AI，以定位具体包并针对性修复 ==="
+          echo "=== [诊断3] 直接扫描生成的 tmp/.config-package.in 中含未闭合双引号的 tristate/menu/bool/string/comment 行（精确定位坏包与出错行）==="
+          if [ -f tmp/.config-package.in ]; then
+            awk '
+              /^[[:space:]]*config PACKAGE_/ { pkg=$0 }
+              {
+                line=$0
+                n=gsub(/"/,"\"",line)
+                if (n>0 && n%2==1 && $0 ~ /^[[:space:]]*(tristate|menu|bool|string|comment)[[:space:]]/) {
+                  print "  包上下文: " pkg
+                  print "  坏行 " FNR ": " $0
+                }
+              }
+            ' tmp/.config-package.in || true
+          else
+            echo "(未找到 tmp/.config-package.in)"
+          fi
+          echo "=== [诊断3] 扫描结束 ==="
+          echo "=== [诊断4] 扫描源码 package/feeds 下 Config.in/Kconfig/Makefile 的未闭合双引号（定位原始文件）==="
+          find package feeds \( -name 'Config.in' -o -name 'Config.in.*' -o -name 'Kconfig' -o -name '*.mk' -o -name 'Makefile' \) -type f 2>/dev/null | while read -r f; do
+            awk -v F="$f" '
+              {
+                line=$0
+                n=gsub(/"/,"\"",line)
+                if (n>0 && n%2==1 && $0 ~ /^[[:space:]]*(tristate|menu|bool|string|comment|TITLE|SUBMENU|LUCI_TITLE|CATEGORY)\b/) {
+                  print F ":" FNR ": " $0
+                }
+              }
+            ' "$f"
+          done || true
+          echo "=== [诊断4] 扫描结束 ==="
+          echo "=== [诊断] 请把 [诊断1]~[诊断4] 四段输出贴给 AI，以精确定位坏包并针对性修复 ==="
           exit 1
         }
         if [ -d staging_dir ]; then

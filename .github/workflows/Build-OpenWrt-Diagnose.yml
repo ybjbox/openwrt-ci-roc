@@ -287,32 +287,60 @@ jobs:
             echo "(未找到 tmp/.config-package.in)"
           fi
           echo "=== [诊断2] 扫描结束 ==="
-          echo "=== [诊断3] 扫描生成的 tmp/.config-package.in 中引号异常行（未闭合或多余引号，已排除转义）==="
+          echo "=== [诊断3] 引号状态机扫描生成的 tmp/.config-package.in（检测未闭合/词中开引号/闭合后残留，已排除转义）==="
           if [ -f tmp/.config-package.in ]; then
             awk '
-              /^[[:space:]]*config PACKAGE_/ { pkg=$0 }
-              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default|prompt)[[:space:]]/ && /"/ {
-                line=$0
-                gsub(/\\"/, "", line)
-                n = gsub(/"/, "\"", line)
-                if (n % 2 == 1 || n > 2) {
-                  print "  包上下文: " pkg
-                  print "  坏行 " FNR ": " $0
+              function scan(line,   i, ch, in_q, prev, n, lastclose, tail, issues, hasq) {
+                gsub(/\\"/, "", line); n=length(line); in_q=0; prev=""; issues=""; hasq=0; lastclose=0
+                for (i=1;i<=n;i++){ ch=substr(line,i,1)
+                  if (ch=="\""){ hasq=1
+                    if(!in_q){ if(prev ~ /[A-Za-z0-9)\]}]/){ issues=(issues?issues" ":"")"mid-token-open"} in_q=1 }
+                    else { in_q=0; lastclose=i }
+                  } else { prev=ch }
                 }
+                if(in_q) issues=(issues?issues" ":"")"unterminated"
+                if(!in_q && hasq && lastclose>0){ tail=substr(line,lastclose+1); sub(/#.*/,"",tail); sub(/^[ \t]+/,"",tail)
+                  if(tail!="" && tail !~ /^(if |depends on |&&|\|\|)/ && tail ~ /[A-Za-z0-9]/) issues=(issues?issues" ":"")"trailing-garbage:"substr(tail,1,30) }
+                return issues
+              }
+              /^[[:space:]]*config PACKAGE_/ { pkg=$0 }
+              {
+                iss=scan($0)
+                if (iss != "") { print "  包上下文: " pkg; print "  坏行 " FNR " [" iss "]: " $0 }
               }
             ' tmp/.config-package.in || true
           else
             echo "(未找到 tmp/.config-package.in)"
           fi
           echo "=== [诊断3] 扫描结束 ==="
-          echo "=== [诊断4] 扫描源码 package/feeds 下 Config.in/Kconfig/Makefile 的引号异常行（定位原始文件）==="
+          echo "=== [诊断4] 引号状态机扫描源码 package/feeds 的 Config.in/Kconfig 与 Makefile 字段（定位原始文件）==="
           find package feeds \( -name 'Config.in' -o -name 'Config.in.*' -o -name 'Kconfig' -o -name '*.mk' -o -name 'Makefile' \) -type f 2>/dev/null | while read -r f; do
             awk -v F="$f" '
-              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default|prompt)[[:space:]]/ && /"/ {
-                line=$0
-                gsub(/\\"/, "", line)
-                n = gsub(/"/, "\"", line)
-                if (n % 2 == 1 || n > 2) print F ":" FNR ": " $0
+              function scan(line,   i, ch, in_q, prev, n, lastclose, tail, issues, hasq) {
+                gsub(/\\"/, "", line); n=length(line); in_q=0; prev=""; issues=""; hasq=0; lastclose=0
+                for (i=1;i<=n;i++){ ch=substr(line,i,1)
+                  if (ch=="\""){ hasq=1
+                    if(!in_q){ if(prev ~ /[A-Za-z0-9)\]}]/){ issues=(issues?issues" ":"")"mid-token-open"} in_q=1 }
+                    else { in_q=0; lastclose=i }
+                  } else { prev=ch }
+                }
+                if(in_q) issues=(issues?issues" ":"")"unterminated"
+                if(!in_q && hasq && lastclose>0){ tail=substr(line,lastclose+1); sub(/#.*/,"",tail); sub(/^[ \t]+/,"",tail)
+                  if(tail!="" && tail !~ /^(if |depends on |&&|\|\|)/ && tail ~ /[A-Za-z0-9]/) issues=(issues?issues" ":"")"trailing-garbage:"substr(tail,1,30) }
+                return issues
+              }
+              {
+                ENDISCFG = (F ~ /Config\.in/ || F ~ /Kconfig$/)
+                if (ENDISCFG) {
+                  if ($0 ~ /^[[:space:]]*(tristate|menu|bool|string|comment|source|default|prompt|select|depends on|if|config|menuconfig)[[:space:]]/ && /"/) {
+                    iss=scan($0); if(iss!="") print F ":" FNR " [" iss "]: " $0
+                  }
+                } else {
+                  if ($0 ~ /^[[:space:]]*(TITLE|MENU|SUBMENU|CATEGORY|LUCI_TITLE|LUCI_DEPENDS|SECTION)[[:space:]]*:?=/) {
+                    s=$0; gsub(/\\"/,"",s)
+                    if (s ~ /"/) print F ":" FNR " [mk-field-has-quote]: " $0
+                  }
+                }
               }
             ' "$f"
           done || true

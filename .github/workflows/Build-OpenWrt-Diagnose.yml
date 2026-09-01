@@ -78,7 +78,7 @@ jobs:
     steps:
     - name: Check Server Performance(检查服务器性能)
       run: |
-        echo "警告?"
+        echo "警告⚠"
         echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
         echo -e "已知CPU型号（降序）：7763，8370C，8272CL，8171M，E5-2673 \n"
         echo "--------------------------CPU信息--------------------------"
@@ -270,26 +270,32 @@ jobs:
         echo "=== [诊断1] 扫描包元数据含双引号的行（TITLE/SUBMENU/MENU/LUCI_TITLE/CATEGORY 及 tristate）==="
         grep -rEn '^[[:space:]]*((TITLE|SUBMENU|MENU|LUCI_TITLE|CATEGORY)[[:space:]]*:?=|tristate ).*".*' package feeds 2>/dev/null | sort -u || echo "(未发现含双引号的字段)"
         echo "=== [诊断1] 扫描结束 ==="
-        make defconfig || {
-          echo "::error::[诊断] make defconfig 失败，输出 kconfig 报错行以便定位问题包"
-          echo "=== [诊断2] 报错行所属 config PACKAGE_ 块（直接暴露坏掉的 tristate/menu 行）==="
+        make defconfig 2>&1 | tee /tmp/defconfig_out.txt || {
+          echo "::error::[诊断] make defconfig 失败，从 make 输出解析 kconfig 报错行号"
+          echo "=== [诊断2] 报错行上下文（解析 make 输出，不扫描文件内容，避免误匹配包描述文字）==="
           if [ -f tmp/.config-package.in ]; then
-            grep -nE 'unknown statement|syntax error|invalid statement' tmp/.config-package.in | head -40 > /tmp/diag_errs.txt || true
-            while IFS=: read -r n _; do
+            grep -oE '\.config-package\.in:[0-9]+:' /tmp/defconfig_out.txt | cut -d: -f2 | sort -un | head -8 > /tmp/diag_errs.txt || true
+            while read -r n; do
+              [ -z "$n" ] && continue
               b=$(awk -v N="$n" 'NR<=N && /^[[:space:]]*config PACKAGE_/{b=NR} END{print (b?b:1)}' tmp/.config-package.in)
-              echo "---- 报错行 $n 所属包块（行 $b ~ $n）----"
-              sed -n "${b},${n}p" tmp/.config-package.in
+              s=$((n-30)); [ "$s" -lt 1 ] && s=1
+              echo "---- 报错行 $n：所属包定义在第 $b 行；以下为第 $s ~ $n 行上下文 ----"
+              sed -n "${b}p" tmp/.config-package.in
+              sed -n "${s},${n}p" tmp/.config-package.in
             done < /tmp/diag_errs.txt
           else
             echo "(未找到 tmp/.config-package.in)"
           fi
           echo "=== [诊断2] 扫描结束 ==="
-          echo "=== [诊断3] 格式校验：生成的 tmp/.config-package.in 中引号不成对的 tristate/menu/bool/string/comment/source/default 行 ==="
+          echo "=== [诊断3] 扫描生成的 tmp/.config-package.in 中引号异常行（未闭合或多余引号，已排除转义）==="
           if [ -f tmp/.config-package.in ]; then
             awk '
               /^[[:space:]]*config PACKAGE_/ { pkg=$0 }
-              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]/ && /"/ {
-                if ($0 !~ /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]+"[^"]*"[[:space:]]*($|#.*)/) {
+              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default|prompt)[[:space:]]/ && /"/ {
+                line=$0
+                gsub(/\\"/, "", line)
+                n = gsub(/"/, "\"", line)
+                if (n % 2 == 1 || n > 2) {
                   print "  包上下文: " pkg
                   print "  坏行 " FNR ": " $0
                 }
@@ -299,18 +305,19 @@ jobs:
             echo "(未找到 tmp/.config-package.in)"
           fi
           echo "=== [诊断3] 扫描结束 ==="
-          echo "=== [诊断4] 格式校验：源码 package/feeds 下 Config.in/Kconfig/Makefile 的引号不成对行（定位原始文件）==="
+          echo "=== [诊断4] 扫描源码 package/feeds 下 Config.in/Kconfig/Makefile 的引号异常行（定位原始文件）==="
           find package feeds \( -name 'Config.in' -o -name 'Config.in.*' -o -name 'Kconfig' -o -name '*.mk' -o -name 'Makefile' \) -type f 2>/dev/null | while read -r f; do
             awk -v F="$f" '
-              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]/ && /"/ {
-                if ($0 !~ /^[[:space:]]*(tristate|menu|bool|string|comment|source|default)[[:space:]]+"[^"]*"[[:space:]]*($|#.*)/) {
-                  print F ":" FNR ": " $0
-                }
+              /^[[:space:]]*(tristate|menu|bool|string|comment|source|default|prompt)[[:space:]]/ && /"/ {
+                line=$0
+                gsub(/\\"/, "", line)
+                n = gsub(/"/, "\"", line)
+                if (n % 2 == 1 || n > 2) print F ":" FNR ": " $0
               }
             ' "$f"
           done || true
           echo "=== [诊断4] 扫描结束 ==="
-          echo "=== [诊断] 请把 [诊断1]~[诊断4] 四段输出贴给 AI，以精确定位坏包并针对性修复 ==="
+          echo "=== [诊断] 请把 [诊断2]~[诊断4] 三段输出贴给 AI，以精确定位坏包并针对性修复 ==="
           exit 1
         }
         if [ -d staging_dir ]; then

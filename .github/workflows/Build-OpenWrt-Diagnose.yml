@@ -170,15 +170,20 @@ jobs:
     - name: Patch package-metadata.pl(修补 kconfig 空依赖生成缺陷)
       run: |
         cd "$OPENWRT_PATH"
-        # 根因：scripts/package-metadata.pl 的 mconf_depends() 在解析 iptables/ip6tables
-        # 虚拟包（vpackage）时，会把空表达式写成 "depends on ()"，导致 luci-app-docker 等包
-        # 在 make defconfig 阶段触发 kconfig 语法错误（invalid statement），进而整个
-        # tmp/.config-package.in 无法解析。下面在生成 .in 之前跳过空依赖子句即可修复。
+        # 根因：scripts/package-metadata.pl 在生成 tmp/.config-package.in 时会把两类退化依赖
+        # 写成非法 kconfig 语句，导致 make defconfig 报 invalid statement：
+        #   (A) mconf_depends() 发射循环对 vpackage（iptables/ip6tables/docker 链）生成 "depends on ()"
+        #       —— 表现为 luci-app-docker 等包；
+        #   (B) 包 config 块（PKG_CONFIG_DEPENDS，如 sing-box 的 depends on $(GO_ARCH_DEPENDS)）在
+        #       GO_ARCH_DEPENDS 未展开时退化为裸 "depends on "（仅空白）—— 表现为 sing-box / sing-box-tiny。
+        # 两者都在首次 make defconfig 之前于源码树 scripts/package-metadata.pl 上修补（feeds update 不改写该文件）。
         command -v perl >/dev/null 2>&1 || sudo apt-get -y install perl
         if [ -f scripts/package-metadata.pl ]; then
-          # 跳过空依赖子句：depends on () 或 depends on <仅空白>（如 sing-box 的 vpackage 退化）
-          perl -i -pe 'if (/foreach my \$depend \(sort keys %\$dep\) \{/) { $_ .= "\t\tnext if \$depend !~ /\\S/ or \$depend =~ /\\(\\)/;\n"; }' scripts/package-metadata.pl
-          echo "::notice::已修补 scripts/package-metadata.pl：跳过空/空白/() 依赖子句"
+          # (A) 发射循环：跳过空 / 仅空白 / "()" 依赖子句（注意：此处 \S \( \) 必须是单反斜杠）
+          perl -i -pe 'if (/foreach my \$depend \(sort keys %\$dep\) \{/) { $_ .= "\t\tnext if \$depend !~ /\S/ or \$depend =~ /\(\)/;\n"; }' scripts/package-metadata.pl
+          # (B) 包 config 块：删除退化为空表达式的 depends on / select 行（覆盖 sing-box 等 PKG_CONFIG_DEPENDS 退化）
+          perl -i -pe 's{^(\s*)\$pkg->\{config\} and print \$pkg->\{config\}\."\\n";}{$1\$pkg->\{config\} and do { my \$__c = \$pkg->\{config\}; \$__c =~ s{^[ \t]*(depends on|select)[ \t]*\R}{}mg; print \$__c."\n"; };}m' scripts/package-metadata.pl
+          echo "::notice::已修补 scripts/package-metadata.pl：跳过空/空白/() 依赖子句（发射循环 + config 块）"
         else
           echo "::warning::未找到 scripts/package-metadata.pl，跳过修补"
         fi

@@ -176,8 +176,9 @@ jobs:
         # tmp/.config-package.in 无法解析。下面在生成 .in 之前跳过空依赖子句即可修复。
         command -v perl >/dev/null 2>&1 || sudo apt-get -y install perl
         if [ -f scripts/package-metadata.pl ]; then
-          perl -i -pe 'if (/foreach my \$depend \(sort keys %\$dep\) \{/) { $_ .= "\t\tnext if \$depend eq q{} or \$depend =~ /\(\)/;\n"; }' scripts/package-metadata.pl
-          echo "::notice::已修补 scripts/package-metadata.pl：跳过空依赖子句（depends on ()）"
+          # 跳过空依赖子句：depends on () 或 depends on <仅空白>（如 sing-box 的 vpackage 退化）
+          perl -i -pe 'if (/foreach my \$depend \(sort keys %\$dep\) \{/) { $_ .= "\t\tnext if \$depend !~ /\\S/ or \$depend =~ /\\(\\)/;\n"; }' scripts/package-metadata.pl
+          echo "::notice::已修补 scripts/package-metadata.pl：跳过空/空白/() 依赖子句"
         else
           echo "::warning::未找到 scripts/package-metadata.pl，跳过修补"
         fi

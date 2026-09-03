@@ -179,10 +179,8 @@ jobs:
         # 两者都在首次 make defconfig 之前于源码树 scripts/package-metadata.pl 上修补（feeds update 不改写该文件）。
         command -v perl >/dev/null 2>&1 || sudo apt-get -y install perl
         if [ -f scripts/package-metadata.pl ]; then
-          # (A) 发射循环：跳过空 / 仅空白 / "()" 依赖子句（注意：此处 \S \( \) 必须是单反斜杠）
-          perl -i -pe 'if (/foreach my \$depend \(sort keys %\$dep\) \{/) { $_ .= "\t\tnext if \$depend !~ /\S/ or \$depend =~ /\(\)/;\n"; }' scripts/package-metadata.pl
-          # (B) 包 config 块：删除退化为空表达式的 depends on / select 行（覆盖 sing-box 等 PKG_CONFIG_DEPENDS 退化）
-          perl -i -pe 's{^(\s*)\$pkg->\{config\} and print \$pkg->\{config\}\."\\n";}{$1\$pkg->\{config\} and do { my \$__c = \$pkg->\{config\}; \$__c =~ s{^[ \t]*(depends on|select)[ \t]*\R}{}mg; print \$__c."\n"; };}m' scripts/package-metadata.pl
+          # 使用独立 perl 脚本修补（q() 字面量 + index 子串定位，避免双引号二次插值把 \R 变成 R 的退化陷阱）
+          perl "$GITHUB_WORKSPACE/fix-package-metadata.pl" scripts/package-metadata.pl
           echo "::notice::已修补 scripts/package-metadata.pl：跳过空/空白/() 依赖子句（发射循环 + config 块）"
         else
           echo "::warning::未找到 scripts/package-metadata.pl，跳过修补"

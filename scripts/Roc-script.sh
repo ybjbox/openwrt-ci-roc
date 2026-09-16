@@ -406,12 +406,23 @@ if [ -d package/luci-app-bandix ]; then
 fi
 
 # 自动注入易有云官方订阅源，完美解决 quickstart、istorex 与 iStore 商店的所有编译依赖
-# echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
-# echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
-# echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
+grep -q '^src-git nas ' feeds.conf.default || echo 'src-git nas https://github.com/linkease/nas-packages.git;master' >> feeds.conf.default
+grep -q '^src-git nas_luci ' feeds.conf.default || echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
+grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
 
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
+
+# 校验 iStore 相关 feed 是否就绪：缺失立即失败，避免静默产出不含 quickstart 的固件
+for istore_feed_pkg in \
+  "package/feeds/nas_luci/luci-app-quickstart" \
+  "package/feeds/nas/quickstart" \
+  "package/feeds/istore/luci-app-store"; do
+  [ -d "$istore_feed_pkg" ] || {
+    echo "Error: iStore feed 未就绪: $istore_feed_pkg" >&2
+    exit 1
+  }
+done
 
 
 # 动态注入 GitHub Secrets 敏感变量至 athena-custom 插件包中

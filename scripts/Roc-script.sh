@@ -410,6 +410,12 @@ grep -q '^src-git nas ' feeds.conf.default || echo 'src-git nas https://github.c
 grep -q '^src-git nas_luci ' feeds.conf.default || echo 'src-git nas_luci https://github.com/linkease/nas-packages-luci.git;main' >> feeds.conf.default
 grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://github.com/linkease/istore;main' >> feeds.conf.default
 
+# 注意：下面的 "feeds update -i" 是 index only（只重建索引，不从仓库下载源码），
+# 而 workflow 第 9 步的 "Update Feeds" 跑在追加这三行之前、用的是旧 feeds.conf，
+# 因此新增的三个 feed 必须在这里真正拉取一次，否则 feeds install 拿到空索引、
+# 会静默产出不含 quickstart 的固件。这里用与第 9 步相同的 -a 全量拉取。
+./scripts/feeds update -a
+
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
 
@@ -420,6 +426,10 @@ for istore_feed_pkg in \
   "package/feeds/istore/luci-app-store"; do
   [ -d "$istore_feed_pkg" ] || {
     echo "Error: iStore feed 未就绪: $istore_feed_pkg" >&2
+    echo "--- feeds.conf.default 尾部 ---" >&2
+    tail -n 6 feeds.conf.default >&2
+    echo "--- package/feeds 已安装内容 ---" >&2
+    ls -1 package/feeds >&2 || true
     exit 1
   }
 done

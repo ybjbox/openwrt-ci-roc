@@ -413,11 +413,27 @@ grep -q '^src-git istore ' feeds.conf.default || echo 'src-git istore https://gi
 # 注意：下面的 "feeds update -i" 是 index only（只重建索引，不从仓库下载源码），
 # 而 workflow 第 9 步的 "Update Feeds" 跑在追加这三行之前、用的是旧 feeds.conf，
 # 因此新增的三个 feed 必须在这里真正拉取一次，否则 feeds install 拿到空索引、
-# 会静默产出不含 quickstart 的固件。这里用与第 9 步相同的 -a 全量拉取。
-./scripts/feeds update -a
+# 会静默产出不含 quickstart 的固件。这里只更新新增的三个 feed（不用 -a，
+# 避免动到 feeds/packages 等已被本脚本改造过的 feed）。
+./scripts/feeds update nas nas_luci istore
 
 ./scripts/feeds update -i -a
 ./scripts/feeds install -a
+
+# iStore 商店声明依赖 tar，但 tar 没有进入本次构建的软件包元数据
+# （产物 .config 里连 CONFIG_PACKAGE_tar 符号都不存在），导致 luci-app-store
+# 被 make defconfig 静默剔除，并连带剔除依赖它的 luci-app-quickstart 与
+# luci-app-istorex——表现为"编译成功、刷机后找不到 Quick Start"。
+# 固件本身用 busybox 的 tar 就能满足运行时需要，这里去掉该硬依赖；
+# 同时沿用本脚本处理 frp 的既有做法，去掉带版本约束的 LUCI_EXTRA_DEPENDS。
+if [ -f package/feeds/istore/luci-app-store/Makefile ]; then
+  sed -i 's/^LUCI_DEPENDS:=+curl +tar /LUCI_DEPENDS:=+curl /' package/feeds/istore/luci-app-store/Makefile
+  sed -i '/^LUCI_EXTRA_DEPENDS:=/d' package/feeds/istore/luci-app-store/Makefile
+  grep -q '^LUCI_DEPENDS:=+curl ' package/feeds/istore/luci-app-store/Makefile || {
+    echo "Error: luci-app-store 的 LUCI_DEPENDS 改写失败（上游可能改了写法）" >&2
+    exit 1
+  }
+fi
 
 # 校验 iStore 相关 feed 是否就绪：缺失立即失败，避免静默产出不含 quickstart 的固件
 for istore_feed_pkg in \

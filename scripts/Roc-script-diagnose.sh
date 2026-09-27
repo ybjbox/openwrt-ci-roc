@@ -343,7 +343,8 @@ if package_enabled luci-app-athena-led luci-i18n-athena-led-zh-cn; then
   clone_repository https://github.com/NONGFAH/luci-app-athena-led main package/luci-app-athena-led
   chmod +x package/luci-app-athena-led/root/etc/init.d/athena_led package/luci-app-athena-led/root/usr/sbin/athena-led
 fi
-# 克隆个人自定义插件包仓库 (包含 DHCP 中文备注插件 luci-app-dhcp-comment)
+# 克隆个人自定义插件包仓库（自用单源多包 feed：luci-app-dhcp-comment、athena-custom、
+# sysupgrade-clash-cleaner、luci-app-cf-ipcheck）；整仓进 package/，选谁由 .config 决定
 git_clone https://github.com/ybjbox/openwrt-packages package/openwrt-packages
 
 # 移除 wrtbwmon 克隆以规避旧版 iptables 拦截链

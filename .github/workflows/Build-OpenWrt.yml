@@ -282,6 +282,18 @@ jobs:
           fi
         done
 
+        # 个人 feed (ybjbox/openwrt-packages) 里的 cf-ipcheck：同样防"静默剔除"。
+        # 只在 feed 确实被 clone 进来时断言 —— 哪个目标的定制脚本没拉这个 feed，
+        # 就不该被这条检查判死。这个包有外部依赖（curl/jq/ca-bundle），
+        # 是"编译成功、刷完机找不到功能"最典型的发生位置。
+        if [ -d package/openwrt-packages/luci-app-cf-ipcheck ]; then
+          if ! grep -q '^CONFIG_PACKAGE_luci-app-cf-ipcheck=y$' .config; then
+            echo "::error::luci-app-cf-ipcheck 未被编入 .config（依赖 curl/jq/ca-bundle 有不满足的？）"
+            grep -n "cf-ipcheck" .config || echo "（连符号都不存在，说明该包已被元数据剔除）"
+            exit 1
+          fi
+        fi
+
         if [ -d staging_dir ]; then
           # Refresh component stamps before aggregate stamps so restored host tools and toolchains remain valid.
           tools_stamp="$(find staging_dir/host -maxdepth 2 -type f -name '.tools_compile*' -print -quit 2>/dev/null || true)"
